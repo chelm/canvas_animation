@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Twindex</title>
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/themes/base/jquery.ui.all.css">
+<link href="css/bootstrap.min.css" rel="stylesheet">
+<link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+
+<script type="text/javascript" src="libs/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="libs/bootstrap.min.js"></script>
+
+<script type="text/javascript" src="libs/colorbrewer.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/jquery-ui.min.js"></script>
+<script type="text/javascript" src="libs/bambu.js"></script>
+
+<script type="text/javascript" src="js/core.js"></script>
+<script type="text/javascript" src="js/settings.js"></script>
+<script type="text/javascript" src="js/mercator.js"></script>
+<script type="text/javascript" src="js/geometry.js"></script>
+<script type="text/javascript" src="js/model.js"></script>
+<script type="text/javascript" src="js/renderer.js"></script>
+<script type="text/javascript" src="js/shader.js"></script>
+
+<script type="text/javascript" src="js/tilejson.provider.js"></script>
+
+<!-- carto -->
+<script src='libs/underscore.js' type='text/javascript'></script>
+<script src='libs/carto.js' type='text/javascript'></script>
+
+<script type="text/javascript" src="libs/modestmaps.js"></script>
+<script type="text/javascript" src="js/vecnik.modestmaps.js"></script>
+
+<script type="text/javascript" src="js/carto.js"></script>
+
+<script type="text/javascript" src="data/twindex.json"></script>
+
+
+
+<script type="text/javascript">
+    
+
+    var map, shader, style;
+    function initMap() {
+        VECNIK.Carto.init(function(carto) {
+            VECNIK.Carto.compile(
+              "#world { line-width: 2; line-color: #f00; [TYPEY='test']{ line-width: 2; } [ZOOM = 0]{ line-width: 2; } }"
+              , function() {});
+        });
+
+        var template = '../img/pt3.png'
+        var subdomains = [ 'a0', 'a3', 'a2', 'a1' ];
+        //var provider = new MM.TemplatedLayer("http://{S}.acetate.geoiq.com/tiles/acetate-bg/{Z}/{X}/{Y}.png", subdomains);
+        var provider = new MM.TemplatedLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}");
+
+        var dataSource = new VECNIK.TileJSON.API({
+           base_url: 'http://polymaps.appspot.com/',
+           layer: 'state',
+           mime: 'json',
+           key: 'name',
+           join: 'twindex',
+           style: 'score' 
+        });
+
+        shader = new VECNIK.CartoShader({
+            'point-color': '#fff',
+            'line-color': '#F00',
+            'line-width': function(data) {
+                return '3';
+            },
+            'polygon-fill': function(data) { 
+                return "rgba(200, 200, 100, 0.8)";
+            }
+        });
+
+        var bambu = Bambu();
+
+        bambu.field('score')
+          .id('twindex')
+          .type('equal_interval')
+          .colors('Spectral')
+          .classes(5)
+          .opacity(.65)
+          .default_fill('#888')
+          .data([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
+
+        style = bambu.classify();
+        console.log(style)
+
+        // JOINER
+        VECNIK.TileJoiner = {};
+        setTwindex('Obama'); 
+
+        var vector_layer = new VECNIK.MM.CanvasProvider(dataSource, shader);
+        fg = new MM.Layer(vector_layer);
+
+        map = new MM.Map(document.getElementById('map'), [provider,  fg])
+        map.setCenterZoom(new MM.Location(40,-98), 4);
+        
+        update(true, null);
+            
+        $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(data.times[0])));
+
+        $("#slider").slider({
+          step:1,
+          min:0,
+          max: data.times.length-1,
+          slide:function(e, ui){
+            update(true, ui.value);
+            $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(data.times[ui.value])));
+            //$('#date').html(new Date(data.times[ui.value]).toString('dddd, MMMM ,yyyy'));
+          }
+        });
+    }
+
+    function setTwindex(name){
+      VECNIK.TileJoiner['twindex'] = data.data[name];
+      if (style && map) update(true, $("#slider").slider('value'));
+    }
+
+    function update(do_style, index){
+      if (index) {
+        for (var key in map.layers[1].provider.tiles.tiles){
+          var tile = map.layers[1].provider.tiles.tiles[key];
+          for (var i=0; i < tile.data.geometry.length; i++){
+            if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.name]) { 
+              tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.name][index];
+            }
+          }
+        }
+      }
+      if (do_style){
+        VECNIK.Carto.compile(style, function(shaderData) {
+          if ( shaderData ) {
+            shader.compile( shaderData );
+          }
+        });
+      }
+    }
+</script>
+<style>
+html, body, #map {
+  width: 100%; height: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+#box {
+  position:absolute;
+  padding:10px; 
+  background:#444;
+  z-index:1;
+  color:#FFF;
+}
+
+.title{
+  font-size:20px;
+}
+
+#slider {
+  width:300px;
+  position:relative;
+  top:12px;
+}
+
+#date {
+  margin-left:10px;
+}
+
+</style>
+</head>
+   <body onload="initMap()">
+    <div class="navbar" style="margin-bottom:0px;">
+      <div class="navbar-inner">
+        <span class="brand">Twindex</span>
+        <ul class="nav">
+          <li class="active"><button class="btn btn-primary" onclick="javascript:setTwindex('Obama')">Obama</button></li>
+          <li><button class="btn btn-danger" onclick="javascript:setTwindex('Romney')">Romney</button></li>
+          <li><div id="slider" class="span6"></div></li>
+          <li><span id="date" class="brand"></span></li>
+        </ul>
+      </div>
+    </div>
+    <div id="map"></div>
+</body>
+</html>
