@@ -8,6 +8,7 @@
 <link href="css/bootstrap-responsive.min.css" rel="stylesheet">
 
 <script type="text/javascript" src="libs/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="libs/jquery.sparkline.min.js"></script>
 <script type="text/javascript" src="libs/bootstrap.min.js"></script>
 <script type="text/javascript" src="libs/underscore.js"></script>
 
@@ -34,9 +35,6 @@
 
 <script type="text/javascript" src="js/carto.js"></script>
 
-<!--script type="text/javascript" src="data/twindex.json"></script-->
-
-
 
 <script type="text/javascript">
     
@@ -60,6 +58,7 @@
       return diff_data;
     }
 
+    var pan = false;
     var map, shader, style;
     function initMap() {
 
@@ -111,7 +110,6 @@
           .classes(9)
           .opacity(.65)
           //.default_fill('#888')
-          //.data(_.unique(style_data.sort(function(a,b){return a - b;})));
           .data(breaks);
 
         style = bambu.classify();
@@ -127,7 +125,24 @@
         map = new MM.Map(document.getElementById('map'), [provider,  fg])
         map.setCenterZoom(new MM.Location(40,-98), 4);
 
-        $('#map').live('mousemove', select);
+        $('#map').live('click', function() { if (!pan) return select.call(this, arguments, 'click');});
+        $('#map').bind('mousemove', function(){ select.call(this, arguments, 'hover'); });
+       
+        $('#map').bind('mousedown', function(){
+          $('#map').bind('mousemove', function(){
+            pan = true;
+          });
+        });
+
+        $('#map').bind('mouseup', function(){
+          setTimeout(function(){
+            pan = false;
+            $('#map').bind('mousemove', function(){
+              select.call(this, arguments, 'hover');
+            });
+          },500);
+          $('#map').unbind('mousemove');
+        });
         
         update(true, null);
             
@@ -152,7 +167,8 @@
         }) 
     }
 
-    function select(e){
+    function select(args, type){
+      var e = args[0];
       var proj = new VECNIK.MercatorProjection();
       var ll = map.pointLocation(new MM.Point(e.clientX, e.clientY));
       var tile_xy = proj.latLngToTile(new VECNIK.LatLng(ll.lat, ll.lon), map.zoom());
@@ -162,14 +178,27 @@
       //Get current tile coordinates
       var numTiles = 1 << map.zoom();
 
-      if (tile){
+      if ( tile ) {
         var c = tile.hitCtx.getImageData(tile_pnt.x, tile_pnt.y, 1, 1).data;
         var idx = VECNIK.RGB2Int(c[0],c[1],c[2]);
+        var x = e.clientX - 5, 
+          y = e.clientY;
+        var offset = 25;
         var geom = tile.data.geometry[idx];
-        if (geom) {
-          var data = geom.metadata;
-          $('#state').html(data.name);
-          $('#sentiment').html(data.score);
+        if (c[3] != 0 && geom){
+          var tdata = geom.metadata;
+          if (type == 'click'){
+            alert(tdata.name);
+          } else {
+            $('#state').html(tdata.name);
+            $('#sentiment').html((tdata.score) ? tdata.score * -1 : tdata.score);
+            $('#info #spark').sparkline(map_data[tdata.name], {height:'35', type:'bar', barWidth:2});
+          
+            $('#info').css({ top: y-offset, left: x+offset });
+            $('#info').show();
+          }
+        } else {
+          $('#info').hide();
         }
       }
     }
@@ -181,6 +210,7 @@
       for (var c in colors){
         var color = colors[c];
         console.log(breaks[c]);
+        if (breaks[c] < 0) breaks[c] = breaks[c] * -1;
         $('<div class="legend" style="background:'+color+';">'+breaks[c]+'</div>').appendTo(legend);
       }
 
@@ -192,7 +222,7 @@
       $('#slider').slider('value', idx++);
       if (val == 'Play'){
         // start the animation
-        var idx = $('#slider').slider('value');
+        if (idx == data.time.length-1) idx = -1;
         playInt = setInterval(function(){
           $('#slider').slider('value', idx++);
         }, 500);
@@ -271,24 +301,12 @@ h1 {
   position: absolute;
   width: 300px;
   right: 35px;
-  height: 100%;
   z-index:2;
   padding:20px;
   color:#FFF;
+  background-color:rgba(60, 60, 60, 0.75);
 }
 
-.bg {
-  position: absolute;
-  width: 300px;
-  right: 35px;
-  height: 435px;
-  z-index:1;
-  padding:20px;
-  color:#FFF;
-  background: #444;
-  opacity: .65;
-  
-}
 
 .legend {
   width:33px;
@@ -301,8 +319,7 @@ h1 {
 }
 
 #legend {
- /* position: absolute;
-  bottom: 25%;*/
+  margin-top:45px;
 }
 
 hr {
@@ -314,13 +331,13 @@ hr {
 }
 
 #state {
-  font-size: 30px;
+  font-size: 20px;
   font-weight: 200;
   line-height: 1;
 }
 
 #sentiment {
-  font-size: 50px;
+  font-size: 40px;
   font-weight: 200;
   line-height: 1;
 }
@@ -334,29 +351,44 @@ hr {
   text-align: center;
 }
 
+#info {
+  position:absolute;
+  border-radius:5px;
+  padding:20px;
+  display:none;
+  color:#fff;
+  background-color: rgba(60, 60, 60, 0.75);
+}
+
+#info #spark {
+  height:35px;
+}
+
 </style>
 </head>
    <body onload="initMap()">
     <div id="sidebar">
       <h1 style="text-align:center;">Election Sentiment from Topsy</h1>
-      <hr/>
-      <div style="text-align:center;">
+      <div style="text-align:center;margin:10px 0px;">
         This map explores the sentiment of all twitter traffic for both presidential candidates over the past 2 months. Data are provided by Topsy and Twitter.<br/>
-        <button class='btn btn-primary' style="margin-top:10px;" onclick="javascript:window.open('data/twindex.json')">Download Data</button>
+        <button class='btn btn-primary' style="margin-top:10px;" onclick="javascript:window.open('data/twindex.zip')">Download Data</button>
       </div>
-      <hr/>
       <div id="animate">
         <button id="play-btn" class="btn" onclick="javascript:togglePlay()">Play</button>
         <span id="date" class="brand"></span>
         <div id="slider" class=""></div>
-        <div id="score" class="">
-          <div id="sentiment"></div>
-          <div id="state"></div>
-        </div>
       </div>
       <div id="legend"></div>
+      <div id="legend_desc">
+        <span id="pro-rom">Pro-Romney</span>
+        <span id="pro-obama" style="float:right;">Pro-Obama</span>
+      </div>
     </div>
-      <div class="bg"></div>
     <div id="map"></div>
+    <div id="info">
+      <div id="sentiment"></div>
+      <div id="state"></div>
+      <div id="spark"></div>
+    </div>
 </body>
 </html>
