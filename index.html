@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Twindex</title>
+<title>Twindex: Twitter Election Sentiment</title>
 
 <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/themes/base/jquery.ui.all.css">
 <link href="css/bootstrap.min.css" rel="stylesheet">
@@ -9,6 +9,7 @@
 
 <script type="text/javascript" src="libs/jquery-1.7.1.min.js"></script>
 <script type="text/javascript" src="libs/bootstrap.min.js"></script>
+<script type="text/javascript" src="libs/underscore.js"></script>
 
 <script type="text/javascript" src="libs/colorbrewer.js"></script>
 <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/jquery-ui.min.js"></script>
@@ -33,15 +34,40 @@
 
 <script type="text/javascript" src="js/carto.js"></script>
 
-<script type="text/javascript" src="data/twindex.json"></script>
+<!--script type="text/javascript" src="data/twindex.json"></script-->
 
 
 
 <script type="text/javascript">
     
+    var style_data = [];
+
+    function processData(d){
+      var obama = d.data.Obama;
+      var romney = d.data.Romney;
+      var diff_data = {}
+      for (var state in obama){
+        diff_data[state] = []; 
+        var o_state = obama[state];
+        var r_state = romney[state];
+        for (var i in o_state){
+            var o = parseInt(o_state[i]);
+            var r = parseInt(r_state[i]);
+            diff_data[state][i] = o - r;
+            style_data.push(diff_data[state][i]);
+        }
+      }
+      return diff_data;
+    }
 
     var map, shader, style;
     function initMap() {
+
+        $.get('data/twindex.json', function(response){
+          data = response;
+          map_data = processData(data);
+        
+
         VECNIK.Carto.init(function(carto) {
             VECNIK.Carto.compile(
               "#world { line-width: 2; line-color: #f00; [TYPEY='test']{ line-width: 2; } [ZOOM = 0]{ line-width: 2; } }"
@@ -73,29 +99,35 @@
             }
         });
 
-        var bambu = Bambu();
+        bambu = Bambu();
+        console.log('style data', _.unique(style_data.sort(function(a,b){return a - b;})));
+
+        breaks = [-80, -60, -40, -20, 0, 20, 40, 60, 80];
 
         bambu.field('score')
           .id('twindex')
-          .type('equal_interval')
-          .colors('Spectral')
-          .classes(5)
+          .type('quantile')
+          .colors('RdYlBu')
+          .classes(9)
           .opacity(.65)
-          .default_fill('#888')
-          .data([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
+          //.default_fill('#888')
+          //.data(_.unique(style_data.sort(function(a,b){return a - b;})));
+          .data(breaks);
 
         style = bambu.classify();
         console.log(style)
 
         // JOINER
         VECNIK.TileJoiner = {};
-        setTwindex('Obama'); 
+        VECNIK.TileJoiner['twindex'] = map_data;
 
-        var vector_layer = new VECNIK.MM.CanvasProvider(dataSource, shader);
+        vector_layer = new VECNIK.MM.CanvasProvider(dataSource, shader);
         fg = new MM.Layer(vector_layer);
 
         map = new MM.Map(document.getElementById('map'), [provider,  fg])
         map.setCenterZoom(new MM.Location(40,-98), 4);
+
+        $('#map').live('mousemove', select);
         
         update(true, null);
             
@@ -108,14 +140,67 @@
           slide:function(e, ui){
             update(true, ui.value);
             $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(data.times[ui.value])));
-            //$('#date').html(new Date(data.times[ui.value]).toString('dddd, MMMM ,yyyy'));
+          },
+          change:function(e, ui){
+            update(true, ui.value);
+            $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(data.times[ui.value])));
           }
         });
+      
+        createLegend();
+
+        }) 
     }
 
-    function setTwindex(name){
-      VECNIK.TileJoiner['twindex'] = data.data[name];
-      if (style && map) update(true, $("#slider").slider('value'));
+    function select(e){
+      var proj = new VECNIK.MercatorProjection();
+      var ll = map.pointLocation(new MM.Point(e.clientX, e.clientY));
+      var tile_xy = proj.latLngToTile(new VECNIK.LatLng(ll.lat, ll.lon), map.zoom());
+      var tile_pnt = proj.latLngToTilePoint(new VECNIK.LatLng(ll.lat, ll.lon), tile_xy.x, tile_xy.y, map.zoom());
+      var tile = vector_layer.tiles.tiles[[map.zoom(), tile_xy.y, tile_xy.x].join(',')];
+
+      //Get current tile coordinates
+      var numTiles = 1 << map.zoom();
+
+      if (tile){
+        var c = tile.hitCtx.getImageData(tile_pnt.x, tile_pnt.y, 1, 1).data;
+        var idx = VECNIK.RGB2Int(c[0],c[1],c[2]);
+        var geom = tile.data.geometry[idx];
+        if (geom) {
+          var data = geom.metadata;
+          $('#state').html(data.name);
+          $('#sentiment').html(data.score);
+        }
+      }
+    }
+
+    function createLegend(){
+      var colors = colorbrewer['RdYlBu'][9];
+      var legend = $('#legend');
+      //var breaks = bambu.breaks();
+      for (var c in colors){
+        var color = colors[c];
+        console.log(breaks[c]);
+        $('<div class="legend" style="background:'+color+';">'+breaks[c]+'</div>').appendTo(legend);
+      }
+
+    } 
+
+    function togglePlay(){
+      var val = $('#play-btn').html();
+      var idx = $('#slider').slider('value');
+      $('#slider').slider('value', idx++);
+      if (val == 'Play'){
+        // start the animation
+        var idx = $('#slider').slider('value');
+        playInt = setInterval(function(){
+          $('#slider').slider('value', idx++);
+        }, 500);
+        $('#play-btn').html('Pause');
+      } else {
+        clearInterval(playInt);
+        $('#play-btn').html('Play');
+      }
     }
 
     function update(do_style, index){
@@ -157,6 +242,12 @@ html, body, #map {
   font-size:20px;
 }
 
+h1 {
+  font-size: 30px;
+  font-weight: 200;
+  line-height: 1;
+}
+
 #slider {
   width:300px;
   position:relative;
@@ -164,23 +255,108 @@ html, body, #map {
 }
 
 #date {
-  margin-left:10px;
+  font-size: 30px;
+  font-weight: 200;
+  line-height: 1;
+  margin-left:25px;
+  position:relative;
+  top:7px;
+}
+
+#play-btn {
+  width:60px;
+}
+
+#sidebar {
+  position: absolute;
+  width: 300px;
+  right: 35px;
+  height: 100%;
+  z-index:2;
+  padding:20px;
+  color:#FFF;
+}
+
+.bg {
+  position: absolute;
+  width: 300px;
+  right: 35px;
+  height: 435px;
+  z-index:1;
+  padding:20px;
+  color:#FFF;
+  background: #444;
+  opacity: .65;
+  
+}
+
+.legend {
+  width:33px;
+  height:20px;
+  float:left;
+  padding:10px 0px;
+  color:#555;
+  text-align:center;
+  
+}
+
+#legend {
+ /* position: absolute;
+  bottom: 25%;*/
+}
+
+hr {
+  color:#444;
+}
+
+.ui-slider-handle {
+  width:10px !important;
+}
+
+#state {
+  font-size: 30px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+#sentiment {
+  font-size: 50px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+#score {
+  position:relative;
+  top:25px;
+  height:125px;
+  margin:auto;
+  width:225px;
+  text-align: center;
 }
 
 </style>
 </head>
    <body onload="initMap()">
-    <div class="navbar" style="margin-bottom:0px;">
-      <div class="navbar-inner">
-        <span class="brand">Twindex</span>
-        <ul class="nav">
-          <li class="active"><button class="btn btn-primary" onclick="javascript:setTwindex('Obama')">Obama</button></li>
-          <li><button class="btn btn-danger" onclick="javascript:setTwindex('Romney')">Romney</button></li>
-          <li><div id="slider" class="span6"></div></li>
-          <li><span id="date" class="brand"></span></li>
-        </ul>
+    <div id="sidebar">
+      <h1 style="text-align:center;">Election Sentiment from Topsy</h1>
+      <hr/>
+      <div style="text-align:center;">
+        This map explores the sentiment of all twitter traffic for both presidential candidates over the past 2 months. Data are provided by Topsy and Twitter.<br/>
+        <button class='btn btn-primary' style="margin-top:10px;" onclick="javascript:window.open('data/twindex.json')">Download Data</button>
       </div>
+      <hr/>
+      <div id="animate">
+        <button id="play-btn" class="btn" onclick="javascript:togglePlay()">Play</button>
+        <span id="date" class="brand"></span>
+        <div id="slider" class=""></div>
+        <div id="score" class="">
+          <div id="sentiment"></div>
+          <div id="state"></div>
+        </div>
+      </div>
+      <div id="legend"></div>
     </div>
+      <div class="bg"></div>
     <div id="map"></div>
 </body>
 </html>

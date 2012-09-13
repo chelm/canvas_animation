@@ -97,10 +97,22 @@ var VECNIK = VECNIK || {};
       delete this.data;
     };
 
+    function RGB2Int(r,g,b){
+      return r+(256*g)+(256*256*b);
+    };
+
+    function Int2RGB(input) {
+      var r = input % 256;
+      var g = parseInt(input / 256) % 256;
+      var b = parseInt(input / 256 / 256) % 256;
+      return [r,g,b];
+    };
 
     VECNIK.Event = Event;
     VECNIK.Model = Model;
     VECNIK.get = get;
+    VECNIK.RGB2Int = RGB2Int;
+    VECNIK.Int2RGB = Int2RGB;
 
 })(VECNIK);
 

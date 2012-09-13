@@ -56,9 +56,10 @@
       };
   }
 
-  Renderer.prototype.render = function(ctx, geometry, zoom, shader) {
+  Renderer.prototype.render = function(ctx, hitctx, geometry, zoom, shader) {
     var primitive_render = this.primitive_render;
     ctx.canvas.width = ctx.canvas.width;
+    if (hitctx) hitctx.canvas.width = hitctx.canvas.width;
     var primitive_type;
     if(geometry && geometry.length) {
         for(var i = 0; i < geometry.length; ++i) {
@@ -82,6 +83,12 @@
                 if (is_active) {
                   renderer(ctx, geo.vertexBuffer);
                 }
+                if (hitctx){
+                  hitctx.strokeStyle = 'rgb(255,255,255)';
+                  hitctx.lineWidth = 2;
+                  hitctx.fillStyle = 'rgb(' + VECNIK.Int2RGB(i).join(',') + ')';
+                  renderer(hitctx, geo.vertexBuffer);
+                }
             }
         }
     }
@@ -103,6 +110,14 @@
       backCanvas.height = this.tileSize.y;
       this.backCtx = backCanvas.getContext('2d');
       this.backCanvas = backCanvas;
+
+      var hitCanvas = document.createElement('canvas');
+      hitCanvas.width = this.tileSize.x;
+      hitCanvas.height = this.tileSize.y;
+      this.hitCtx = hitCanvas.getContext('2d');
+      this.hitCanvas = hitCanvas;
+
+      tile.hitCtx = this.hitCtx;
 
       this.el = canvas;
       this.id = tile.key();
@@ -135,11 +150,11 @@
     var BACKBUFFER = true;
     if(BACKBUFFER) {
         this.backCanvas.width = this.backCanvas.width;
-        this.renderer.render(this.backCtx, this.tile.geometry(), this.tile.zoom, this.shader);
+        this.renderer.render(this.backCtx, this.hitCtx, this.tile.geometry(), this.tile.zoom, this.shader);
         this.canvas.width = this.canvas.width;
         this.ctx.drawImage(this.backCanvas, 0, 0);
     } else {
-      this.renderer.render(ctx, this.tile.geometry(), this.tile.zoom, this.shader);
+      this.renderer.render(ctx, this.hitCtx, this.tile.geometry(), this.tile.zoom, this.shader);
     }
 
     this.stats.rendering_time = this.profiler.end();
