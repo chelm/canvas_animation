@@ -7,251 +7,231 @@
 <link href="css/bootstrap.min.css" rel="stylesheet">
 <link href="css/bootstrap-responsive.min.css" rel="stylesheet">
 
-<script type="text/javascript" src="libs/jquery-1.7.1.min.js"></script>
-<script type="text/javascript" src="libs/jquery.sparkline.min.js"></script>
-<script type="text/javascript" src="libs/bootstrap.min.js"></script>
-<script type="text/javascript" src="libs/underscore.js"></script>
-
-<script type="text/javascript" src="libs/colorbrewer.js"></script>
-<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/jquery-ui.min.js"></script>
-<script type="text/javascript" src="libs/bambu.js"></script>
-
-<script type="text/javascript" src="js/core.js"></script>
-<script type="text/javascript" src="js/settings.js"></script>
-<script type="text/javascript" src="js/mercator.js"></script>
-<script type="text/javascript" src="js/geometry.js"></script>
-<script type="text/javascript" src="js/model.js"></script>
-<script type="text/javascript" src="js/renderer.js"></script>
-<script type="text/javascript" src="js/shader.js"></script>
-
-<script type="text/javascript" src="js/tilejson.provider.js"></script>
-
-<!-- carto -->
-<script src='libs/underscore.js' type='text/javascript'></script>
-<script src='libs/carto.js' type='text/javascript'></script>
-
-<script type="text/javascript" src="libs/modestmaps.js"></script>
-<script type="text/javascript" src="js/vecnik.modestmaps.js"></script>
-
-<script type="text/javascript" src="js/carto.js"></script>
-
-
 <script type="text/javascript">
-    
-    var style_data = [];
 
-    function processData(d){
-      var obama = d.data.Obama;
-      var romney = d.data.Romney;
-      var diff_data = {}
-      for (var state in obama){
-        diff_data[state] = []; 
-        var o_state = obama[state];
-        var r_state = romney[state];
-        for (var i in o_state){
-            var o = parseInt(o_state[i]);
-            var r = parseInt(r_state[i]);
-            diff_data[state][i] = o - r;
-            style_data.push(diff_data[state][i]);
+    var TwindexApp = function(data_path){ 
+
+      var style_data = [],
+        pan = false, 
+        twindex,
+        map, 
+        shader, 
+        style;
+
+      // first get the data 
+      $.get(data_path, function(response){
+          twindex = response;
+          map_data = processData(twindex);
+          initMap();
+      });
+
+
+      function processData(d){
+        var obama = d.data.Obama;
+        var romney = d.data.Romney;
+        var diff_data = {}
+        for (var state in obama){
+          diff_data[state] = []; 
+          var o_state = obama[state];
+          var r_state = romney[state];
+          for (var i in o_state){
+              var o = parseInt(o_state[i]);
+              var r = parseInt(r_state[i]);
+              diff_data[state][i] = o - r;
+              style_data.push(diff_data[state][i]);
+          }
         }
+        return diff_data;
       }
-      return diff_data;
-    }
 
-    var pan = false;
-    var map, shader, style;
-    function initMap() {
 
-        $.get('data/twindex.json', function(response){
-          data = response;
-          map_data = processData(data);
-        
+      function initMap() {
 
-        VECNIK.Carto.init(function(carto) {
-            VECNIK.Carto.compile(
-              "#world { line-width: 2; line-color: #f00; [TYPEY='test']{ line-width: 2; } [ZOOM = 0]{ line-width: 2; } }"
-              , function() {});
-        });
-
-        var template = '../img/pt3.png'
-        var subdomains = [ 'a0', 'a3', 'a2', 'a1' ];
-        //var provider = new MM.TemplatedLayer("http://{S}.acetate.geoiq.com/tiles/acetate-bg/{Z}/{X}/{Y}.png", subdomains);
-        var provider = new MM.TemplatedLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}");
-
-        var dataSource = new VECNIK.TileJSON.API({
-           base_url: 'http://polymaps.appspot.com/',
-           layer: 'state',
-           mime: 'json',
-           key: 'name',
-           join: 'twindex',
-           style: 'score' 
-        });
-
-        shader = new VECNIK.CartoShader({
-            'point-color': '#fff',
-            'line-color': '#F00',
-            'line-width': function(data) {
-                return '3';
-            },
-            'polygon-fill': function(data) { 
-                return "rgba(200, 200, 100, 0.8)";
-            }
-        });
-
-        bambu = Bambu();
-        console.log('style data', _.unique(style_data.sort(function(a,b){return a - b;})));
-
-        breaks = [-80, -60, -40, -20, 0, 20, 40, 60, 80];
-
-        bambu.field('score')
-          .id('twindex')
-          .type('quantile')
-          .colors('RdYlBu')
-          .classes(9)
-          .opacity(.65)
-          //.default_fill('#888')
-          .data(breaks);
-
-        style = bambu.classify();
-        console.log(style)
-
-        // JOINER
-        VECNIK.TileJoiner = {};
-        VECNIK.TileJoiner['twindex'] = map_data;
-
-        vector_layer = new VECNIK.MM.CanvasProvider(dataSource, shader);
-        fg = new MM.Layer(vector_layer);
-
-        map = new MM.Map(document.getElementById('map'), [provider,  fg])
-        map.setCenterZoom(new MM.Location(40,-98), 4);
-
-        $('#map').live('click', function() { if (!pan) return select.call(this, arguments, 'click');});
-        $('#map').bind('mousemove', function(){ select.call(this, arguments, 'hover'); });
-       
-        $('#map').bind('mousedown', function(){
-          $('#map').bind('mousemove', function(){
-            pan = true;
+          VECNIK.Carto.init(function(carto) {
+              VECNIK.Carto.compile(
+                "#world { line-width: 2; line-color: #f00; [TYPEY='test']{ line-width: 2; } [ZOOM = 0]{ line-width: 2; } }"
+                , function() {});
           });
-        });
 
-        $('#map').bind('mouseup', function(){
-          setTimeout(function(){
-            pan = false;
+          var template = '../img/pt3.png'
+          var subdomains = [ 'a0', 'a3', 'a2', 'a1' ];
+          //var provider = new MM.TemplatedLayer("http://{S}.acetate.geoiq.com/tiles/acetate-bg/{Z}/{X}/{Y}.png", subdomains);
+          var provider = new MM.TemplatedLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}");
+
+          var dataSource = new VECNIK.TileJSON.API({
+             base_url: 'http://polymaps.appspot.com/',
+             layer: 'state',
+             mime: 'json',
+             key: 'name',
+             join: 'twindex',
+             style: 'score' 
+          });
+
+          shader = new VECNIK.CartoShader({
+              'point-color': '#fff',
+              'line-color': '#F00',
+              'line-width': function(data) {
+                  return '3';
+              },
+              'polygon-fill': function(data) { 
+                  return "rgba(200, 200, 100, 0.8)";
+              }
+          });
+
+          bambu = Bambu();
+
+          breaks = [-80, -60, -40, -20, 0, 20, 40, 60, 80];
+
+          bambu.field('score')
+            .id('twindex')
+            .type('quantile')
+            .colors('RdYlBu')
+            .classes(9)
+            .opacity(.65)
+            //.default_fill('#888')
+            .data(breaks);
+
+          style = bambu.classify();
+          console.log(style)
+
+          // JOINER
+          VECNIK.TileJoiner = {};
+          VECNIK.TileJoiner['twindex'] = map_data;
+
+          vector_layer = new VECNIK.MM.CanvasProvider(dataSource, shader);
+          fg = new MM.Layer(vector_layer);
+
+          map = new MM.Map(document.getElementById('map'), [provider,  fg])
+          map.setCenterZoom(new MM.Location(40,-98), 4);
+
+          $('#map').live('click', function() { if (!pan) return select.call(this, arguments, 'click');});
+          $('#map').bind('mousemove', function(){ select.call(this, arguments, 'hover'); });
+         
+          $('#map').bind('mousedown', function(){
             $('#map').bind('mousemove', function(){
-              select.call(this, arguments, 'hover');
+              pan = true;
             });
-          },500);
-          $('#map').unbind('mousemove');
-        });
-        
-        update(true, null);
-            
-        $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(data.times[0])));
+          });
 
-        $("#slider").slider({
-          step:1,
-          min:0,
-          max: data.times.length-1,
-          slide:function(e, ui){
-            update(true, ui.value);
-            $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(data.times[ui.value])));
-          },
-          change:function(e, ui){
-            update(true, ui.value);
-            $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(data.times[ui.value])));
-          }
-        });
-      
-        createLegend();
-
-        }) 
-    }
-
-    function select(args, type){
-      var e = args[0];
-      var proj = new VECNIK.MercatorProjection();
-      var ll = map.pointLocation(new MM.Point(e.clientX, e.clientY));
-      var tile_xy = proj.latLngToTile(new VECNIK.LatLng(ll.lat, ll.lon), map.zoom());
-      var tile_pnt = proj.latLngToTilePoint(new VECNIK.LatLng(ll.lat, ll.lon), tile_xy.x, tile_xy.y, map.zoom());
-      var tile = vector_layer.tiles.tiles[[map.zoom(), tile_xy.y, tile_xy.x].join(',')];
-
-      //Get current tile coordinates
-      var numTiles = 1 << map.zoom();
-
-      if ( tile ) {
-        var c = tile.hitCtx.getImageData(tile_pnt.x, tile_pnt.y, 1, 1).data;
-        var idx = VECNIK.RGB2Int(c[0],c[1],c[2]);
-        var x = e.clientX - 5, 
-          y = e.clientY;
-        var offset = 25;
-        var geom = tile.data.geometry[idx];
-        if (c[3] != 0 && geom){
-          var tdata = geom.metadata;
-          if (type == 'click'){
-            alert(tdata.name);
-          } else {
-            $('#state').html(tdata.name);
-            $('#sentiment').html((tdata.score) ? tdata.score * -1 : tdata.score);
-            $('#info #spark').sparkline(map_data[tdata.name], {height:'35', type:'bar', barWidth:2});
+          $('#map').bind('mouseup', function(){
+            setTimeout(function(){
+              pan = false;
+              $('#map').bind('mousemove', function(){
+                select.call(this, arguments, 'hover');
+              });
+            },500);
+            $('#map').unbind('mousemove');
+          });
           
-            $('#info').css({ top: y-offset, left: x+offset });
-            $('#info').show();
+          update(true, null);
+              
+          $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(twindex.times[0])));
+
+          $("#slider").slider({
+            step:1,
+            min:0,
+            max: twindex.times.length-1,
+            slide:function(e, ui){
+              update(true, ui.value);
+              $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(twindex.times[ui.value])));
+            },
+            change:function(e, ui){
+              update(true, ui.value);
+              $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(twindex.times[ui.value])));
+            }
+          });
+        
+          createLegend();
+      }
+
+      function select(args, type){
+        var e = args[0];
+        var proj = new VECNIK.MercatorProjection();
+        var ll = map.pointLocation(new MM.Point(e.clientX, e.clientY));
+        var tile_xy = proj.latLngToTile(new VECNIK.LatLng(ll.lat, ll.lon), map.zoom());
+        var tile_pnt = proj.latLngToTilePoint(new VECNIK.LatLng(ll.lat, ll.lon), tile_xy.x, tile_xy.y, map.zoom());
+        var tile = vector_layer.tiles.tiles[[map.zoom(), tile_xy.y, tile_xy.x].join(',')];
+
+        //Get current tile coordinates
+        var numTiles = 1 << map.zoom();
+
+        if ( tile ) {
+          var c = tile.hitCtx.getImageData(tile_pnt.x, tile_pnt.y, 1, 1).data;
+          var idx = VECNIK.RGB2Int(c[0],c[1],c[2]);
+          var x = e.clientX - 5, 
+            y = e.clientY;
+          var offset = 25;
+          var geom = tile.data.geometry[idx];
+          if (c[3] != 0 && geom){
+            var tdata = geom.metadata;
+            if (type == 'click'){
+              alert(tdata.name);
+            } else {
+              $('#state').html(tdata.name);
+              $('#sentiment').html((tdata.score) ? tdata.score * -1 : tdata.score);
+              $('#info #spark').sparkline(map_data[tdata.name], {height:'35', type:'bar', barWidth:2});
+            
+              $('#info').css({ top: y-offset, left: x+offset });
+              $('#info').show();
+            }
+          } else {
+            $('#info').hide();
           }
-        } else {
-          $('#info').hide();
         }
       }
-    }
 
-    function createLegend(){
-      var colors = colorbrewer['RdYlBu'][9];
-      var legend = $('#legend');
-      //var breaks = bambu.breaks();
-      for (var c in colors){
-        var color = colors[c];
-        console.log(breaks[c]);
-        if (breaks[c] < 0) breaks[c] = breaks[c] * -1;
-        $('<div class="legend" style="background:'+color+';">'+breaks[c]+'</div>').appendTo(legend);
+      function createLegend(){
+        var colors = colorbrewer['RdYlBu'][9];
+        var legend = $('#legend');
+        //var breaks = bambu.breaks();
+        for (var c in colors){
+          var color = colors[c];
+          console.log(breaks[c]);
+          if (breaks[c] < 0) breaks[c] = breaks[c] * -1;
+          $('<div class="legend" style="background:'+color+';">'+breaks[c]+'</div>').appendTo(legend);
+        }
+
+      } 
+
+      this.togglePlay = function(){
+        var val = $('#play-btn').html();
+        var idx = $('#slider').slider('value');
+        $('#slider').slider('value', idx++);
+        if (val == 'Play'){
+          // start the animation
+          if (idx == twindex.times.length-1) idx = -1;
+          playInt = setInterval(function(){
+            $('#slider').slider('value', idx++);
+          }, 500);
+          $('#play-btn').html('Pause');
+        } else {
+          clearInterval(playInt);
+          $('#play-btn').html('Play');
+        }
+      }
+
+      function update(do_style, index){
+        if (index) {
+          for (var key in map.layers[1].provider.tiles.tiles){
+            var tile = map.layers[1].provider.tiles.tiles[key];
+            for (var i=0; i < tile.data.geometry.length; i++){
+              if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.name]) { 
+                tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.name][index];
+              }
+            }
+          }
+        }
+        if (do_style){
+          VECNIK.Carto.compile(style, function(shaderData) {
+            if ( shaderData ) {
+              shader.compile( shaderData );
+            }
+          });
+        }
       }
 
     } 
 
-    function togglePlay(){
-      var val = $('#play-btn').html();
-      var idx = $('#slider').slider('value');
-      $('#slider').slider('value', idx++);
-      if (val == 'Play'){
-        // start the animation
-        if (idx == data.time.length-1) idx = -1;
-        playInt = setInterval(function(){
-          $('#slider').slider('value', idx++);
-        }, 500);
-        $('#play-btn').html('Pause');
-      } else {
-        clearInterval(playInt);
-        $('#play-btn').html('Play');
-      }
-    }
-
-    function update(do_style, index){
-      if (index) {
-        for (var key in map.layers[1].provider.tiles.tiles){
-          var tile = map.layers[1].provider.tiles.tiles[key];
-          for (var i=0; i < tile.data.geometry.length; i++){
-            if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.name]) { 
-              tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.name][index];
-            }
-          }
-        }
-      }
-      if (do_style){
-        VECNIK.Carto.compile(style, function(shaderData) {
-          if ( shaderData ) {
-            shader.compile( shaderData );
-          }
-        });
-      }
-    }
 </script>
 <style>
 html, body, #map {
@@ -366,7 +346,7 @@ hr {
 
 </style>
 </head>
-   <body onload="initMap()">
+   <body onload="javascript:app = new TwindexApp('data/twindex.json')">
     <div id="sidebar">
       <h1 style="text-align:center;">Election Sentiment from Topsy</h1>
       <div style="text-align:center;margin:10px 0px;">
@@ -374,7 +354,7 @@ hr {
         <button class='btn btn-primary' style="margin-top:10px;" onclick="javascript:window.open('data/twindex.zip')">Download Data</button>
       </div>
       <div id="animate">
-        <button id="play-btn" class="btn" onclick="javascript:togglePlay()">Play</button>
+        <button id="play-btn" class="btn" onclick="javascript:app.togglePlay()">Play</button>
         <span id="date" class="brand"></span>
         <div id="slider" class=""></div>
       </div>
@@ -390,5 +370,30 @@ hr {
       <div id="state"></div>
       <div id="spark"></div>
     </div>
+<script type="text/javascript" src="libs/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="libs/jquery.sparkline.min.js"></script>
+<script type="text/javascript" src="libs/bootstrap.min.js"></script>
+<script type="text/javascript" src="libs/underscore.js"></script>
+
+<script type="text/javascript" src="libs/colorbrewer.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/jquery-ui.min.js"></script>
+<script type="text/javascript" src="libs/bambu.js"></script>
+
+<script type="text/javascript" src="js/core.js"></script>
+<script type="text/javascript" src="js/settings.js"></script>
+<script type="text/javascript" src="js/mercator.js"></script>
+<script type="text/javascript" src="js/geometry.js"></script>
+<script type="text/javascript" src="js/model.js"></script>
+<script type="text/javascript" src="js/renderer.js"></script>
+<script type="text/javascript" src="js/shader.js"></script>
+
+<script type="text/javascript" src="js/tilejson.provider.js"></script>
+
+<!-- carto -->
+<script src='libs/underscore.js' type='text/javascript'></script>
+<script src='libs/carto.js' type='text/javascript'></script>
+<script type="text/javascript" src="libs/modestmaps.js"></script>
+<script type="text/javascript" src="js/vecnik.modestmaps.js"></script>
+<script type="text/javascript" src="js/carto.js"></script>
 </body>
 </html>
