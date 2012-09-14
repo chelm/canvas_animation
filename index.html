@@ -190,8 +190,11 @@
             if (type == 'click'){
               //app.addState(tdata.name);
             } else {
-              $('#state').html(tdata.name);
-              $('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
+              $('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
+              var candidate = (tdata.score < 0) ? 'Romney' : 'Obama';
+              //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
+              $('#obama').html('Obama: '+ app.twindex.data.Obama[tdata.name][$('#slider').slider('value')]);
+              $('#romney').html('Romney: '+ app.twindex.data.Romney[tdata.name][$('#slider').slider('value')]);
               $('#info #spark').sparkline(map_data[tdata.name], {height:'35', type:'bar', barWidth:2});
             
               $('#info').css({ top: y-offset, left: x+offset });
@@ -376,8 +379,8 @@ hr {
   line-height: 1;
 }
 
-#sentiment {
-  font-size: 40px;
+.sentiment {
+  font-size: 30px;
   font-weight: 200;
   line-height: 1;
 }
@@ -421,6 +424,7 @@ hr {
 
 #hist {
   position:relative;
+  top:10px;
 }
 
 </style>
@@ -447,8 +451,9 @@ hr {
     </div>
     <div id="map"></div>
     <div id="info">
-      <div id="sentiment"></div>
       <div id="state"></div>
+      <div id="obama" class="sentiment"></div>
+      <div id="romney" class="sentiment"></div>
       <div id="spark"></div>
     </div>
 <script type="text/javascript" src="libs/jquery-1.7.1.min.js"></script>
