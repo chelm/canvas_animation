@@ -190,7 +190,8 @@
             if (type == 'click'){
               //app.addState(tdata.name);
             } else {
-              $('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
+              //$('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
+              $('#state').html(tdata.name);
               var candidate = (tdata.score < 0) ? 'Romney' : 'Obama';
               //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
               $('#obama').html('Obama: '+ app.twindex.data.Obama[tdata.name][$('#slider').slider('value')]);
@@ -374,13 +375,13 @@ hr {
 }
 
 #state {
-  font-size: 20px;
+  font-size: 25px;
   font-weight: 200;
   line-height: 1;
 }
 
 .sentiment {
-  font-size: 30px;
+  font-size: 20px;
   font-weight: 200;
   line-height: 1;
 }
