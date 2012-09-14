@@ -204,9 +204,8 @@
       }
 
       function buildHistogram(){
-        console.log(app.twindex.overall);
         // build stacked sparkline chart
-        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:3});
+        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:2});
       }
 
       function createLegend(){
@@ -315,9 +314,14 @@ h1 {
 }
 
 #slider {
-  width:300px;
+  width:250px;
   position:relative;
   top:12px;
+}
+
+#animate {
+  width:250px;
+  margin:auto;
 }
 
 #date {
@@ -355,7 +359,7 @@ h1 {
 }
 
 #legend {
-  margin-top:45px;
+  margin-top:25px;
 }
 
 hr {
@@ -392,8 +396,10 @@ hr {
   border-radius:5px;
   padding:20px;
   display:none;
-  color:#fff;
-  background-color: rgba(60, 60, 60, 0.75);
+  color:#444;
+  /*background-color: rgba(60, 60, 60, 0.75);*/
+  background-color: rgba(255, 255, 255, 0.75);
+  z-index:1000;
 }
 
 #info #spark {
@@ -415,7 +421,6 @@ hr {
 
 #hist {
   position:relative;
-  left:-17px; 
 }
 
 </style>
