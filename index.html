@@ -10,7 +10,7 @@
 <script type="text/javascript">
 
     var TwindexApp = function(data_path){ 
-
+      var self = this;
       var style_data = [],
         pan = false, 
         twindex,
@@ -21,6 +21,7 @@
       // first get the data 
       $.get(data_path, function(response){
           twindex = response;
+          self.twindex = twindex;
           map_data = processData(twindex);
           initMap();
       });
@@ -30,6 +31,8 @@
         var obama = d.data.Obama;
         var romney = d.data.Romney;
         var diff_data = {}
+        app.twindex.overall = [];
+        app.overall = {obama: [], romney: []};
         for (var state in obama){
           diff_data[state] = []; 
           var o_state = obama[state];
@@ -39,9 +42,25 @@
               var r = parseInt(r_state[i]);
               diff_data[state][i] = o - r;
               style_data.push(diff_data[state][i]);
+
+              if (!app.overall.obama[i]) app.overall.obama[i] = [o];
+              else app.overall.obama[i].push(o);
+              
+              if (!app.overall.romney[i]) app.overall.romney[i] = [r];
+              else app.overall.romney[i].push(r);
           }
         }
+        // reduce
+        for (var i in app.overall.obama){
+          app.twindex.overall[i] = [parseInt(average(app.overall.obama[i])), parseInt(average(app.overall.romney[i])) || 0];
+        }
         return diff_data;
+      }
+
+      function average (arr) {
+        return _.reduce(arr, function(memo, num) {
+          return memo + num;
+        }, 0) / arr.length;
       }
 
 
@@ -85,7 +104,7 @@
           bambu.field('score')
             .id('twindex')
             .type('quantile')
-            .colors('RdYlBu')
+            .colors('RdBu')
             .classes(9)
             .opacity(.65)
             //.default_fill('#888')
@@ -140,8 +159,12 @@
               $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(twindex.times[ui.value])));
             }
           });
+
+          // add remove binding to state divs
+          //$('.state').on('click', function(){ app.dropState( jq(this).id ) });
         
           createLegend();
+          buildHistogram();
       }
 
       function select(args, type){
@@ -165,10 +188,10 @@
           if (c[3] != 0 && geom){
             var tdata = geom.metadata;
             if (type == 'click'){
-              alert(tdata.name);
+              //app.addState(tdata.name);
             } else {
               $('#state').html(tdata.name);
-              $('#sentiment').html((tdata.score) ? tdata.score * -1 : tdata.score);
+              $('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
               $('#info #spark').sparkline(map_data[tdata.name], {height:'35', type:'bar', barWidth:2});
             
               $('#info').css({ top: y-offset, left: x+offset });
@@ -180,8 +203,14 @@
         }
       }
 
+      function buildHistogram(){
+        console.log(app.twindex.overall);
+        // build stacked sparkline chart
+        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:3});
+      }
+
       function createLegend(){
-        var colors = colorbrewer['RdYlBu'][9];
+        var colors = colorbrewer['RdBu'][9];
         var legend = $('#legend');
         //var breaks = bambu.breaks();
         for (var c in colors){
@@ -191,7 +220,34 @@
           $('<div class="legend" style="background:'+color+';">'+breaks[c]+'</div>').appendTo(legend);
         }
 
+      }
+
+      this.states = {};
+
+      this.addState = function(state){
+        if (!this.states[state]) {
+          this.states[state] = {
+            obama: this.twindex.data.Obama[state],
+            romney: this.twindex.data.Romney[state],
+            diff: [],
+            color: '#456783'
+          };
+          // add html element
+          $('<div id="'+state+'" class="state">'+ state +'</div>').appendTo($('#state_list'));
+        }
       } 
+
+      this.dropState = function(state){
+        delete this.states[state];
+        $('#'+state).remove();
+      }
+
+      /*this.buildStateList = function(){
+        $('#statelist').html('');
+        for (var s in this.states){
+          console.log('state', this.states[s]);
+        }
+      }*/
 
       this.togglePlay = function(){
         var val = $('#play-btn').html();
@@ -344,6 +400,24 @@ hr {
   height:35px;
 }
 
+#state_list {
+  margin-top:15px;
+}
+
+.state {
+  border:1px solid;
+  padding:10px;
+  margin:3px 0px;
+  font-size: 20px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+#hist {
+  position:relative;
+  left:-17px; 
+}
+
 </style>
 </head>
    <body onload="javascript:app = new TwindexApp('data/twindex.json')">
@@ -356,6 +430,7 @@ hr {
       <div id="animate">
         <button id="play-btn" class="btn" onclick="javascript:app.togglePlay()">Play</button>
         <span id="date" class="brand"></span>
+        <div id="hist" class=""></div>
         <div id="slider" class=""></div>
       </div>
       <div id="legend"></div>
@@ -363,6 +438,7 @@ hr {
         <span id="pro-rom">Pro-Romney</span>
         <span id="pro-obama" style="float:right;">Pro-Obama</span>
       </div>
+      <div id="state_list"></div>
     </div>
     <div id="map"></div>
     <div id="info">
