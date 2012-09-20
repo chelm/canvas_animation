@@ -428,6 +428,24 @@ hr {
   top:10px;
 }
 
+#esri_logo {
+  position:absolute;
+  bottom:-15px;
+  left:10px;
+  background-image: url('img/esri_200.png');
+  width:200px;
+  height:90px;
+}
+
+#topsy_logo {
+  position:absolute;
+  bottom:10px;
+  left:220px;
+  background-image: url('img/topsy_200.png');
+  width:200px;
+  height:51px;
+}
+
 </style>
 </head>
    <body onload="javascript:app = new TwindexApp('data/twindex.json')">
@@ -450,6 +468,8 @@ hr {
       <div id="state_list"></div>
     </div>
     <div id="map"></div>
+    <div id="esri_logo"></div>
+    <div id="topsy_logo"></div>
     <div id="info">
       <div id="state"></div>
       <div id="obama" class="sentiment"></div>
