@@ -17,7 +17,7 @@
   }
 
   TileJSONAPI.prototype.url = function(coordinates) {
-      var url = this._url( this.opts.layer, [coordinates.zoom, coordinates.column, coordinates.row].join('/') + '.json' );
+      var url = this._url( this.opts.layer, [coordinates.zoom, coordinates.column, coordinates.row].join('/') + ((this.opts.mime) ? this.opts.mime : '.geojson') );
       return url;
   }
   

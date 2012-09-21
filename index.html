@@ -78,10 +78,10 @@
           var provider = new MM.TemplatedLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}");
 
           var dataSource = new VECNIK.TileJSON.API({
-             base_url: 'http://polymaps.appspot.com/',
-             layer: 'state',
-             mime: 'json',
-             key: 'name',
+             base_url: 'http://geocommons.com/datasets/256371/',
+             layer: 'tiles',
+             mime: '.geojson',
+             key: 'state',
              join: 'twindex',
              style: 'score' 
           });
@@ -111,7 +111,7 @@
             .data(breaks);
 
           style = bambu.classify();
-          console.log(style)
+          //console.log(style)
 
           // JOINER
           VECNIK.TileJoiner = {};
@@ -184,26 +184,30 @@
           var x = e.clientX - 5, 
             y = e.clientY;
           var offset = 25;
+          try {
           var geom = tile.data.geometry[idx];
           if (c[3] != 0 && geom){
-            var tdata = geom.metadata;
-            if (type == 'click'){
-              //app.addState(tdata.name);
+              var tdata = geom.metadata;
+              if (type == 'click'){
+                //app.addState(tdata.name);
+              } else {
+                //$('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
+                $('#state').html(tdata.name);
+                var candidate = (tdata.score < 0) ? 'Romney' : 'Obama';
+                //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
+                try {
+                  $('#obama').html('Obama: '+ app.twindex.data.Obama[tdata.name][$('#slider').slider('value')]);
+                  $('#romney').html('Romney: '+ app.twindex.data.Romney[tdata.name][$('#slider').slider('value')]);
+                  $('#info #spark').sparkline(map_data[tdata.name], {height:'35', type:'bar', barWidth:2});
+              
+                  $('#info').css({ top: y-offset, left: x+offset });
+                  $('#info').show();
+                } catch(e){}
+              }
             } else {
-              //$('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
-              $('#state').html(tdata.name);
-              var candidate = (tdata.score < 0) ? 'Romney' : 'Obama';
-              //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
-              $('#obama').html('Obama: '+ app.twindex.data.Obama[tdata.name][$('#slider').slider('value')]);
-              $('#romney').html('Romney: '+ app.twindex.data.Romney[tdata.name][$('#slider').slider('value')]);
-              $('#info #spark').sparkline(map_data[tdata.name], {height:'35', type:'bar', barWidth:2});
-            
-              $('#info').css({ top: y-offset, left: x+offset });
-              $('#info').show();
+              $('#info').hide();
             }
-          } else {
-            $('#info').hide();
-          }
+          } catch(e){}
         }
       }
 
@@ -218,7 +222,6 @@
         //var breaks = bambu.breaks();
         for (var c in colors){
           var color = colors[c];
-          console.log(breaks[c]);
           if (breaks[c] < 0) breaks[c] = breaks[c] * -1;
           $('<div class="legend" style="background:'+color+';">'+breaks[c]+'</div>').appendTo(legend);
         }
@@ -248,7 +251,7 @@
       /*this.buildStateList = function(){
         $('#statelist').html('');
         for (var s in this.states){
-          console.log('state', this.states[s]);
+          //console.log('state', this.states[s]);
         }
       }*/
 
