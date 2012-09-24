@@ -19,12 +19,17 @@
         style;
 
       // first get the data 
-      $.get(data_path, function(response){
+      $('#browser').show();
+      if ( $.browser.msie ) {
+        $('#browser').show();
+      } else {
+        $.get(data_path, function(response){
           twindex = response;
           self.twindex = twindex;
           map_data = processData(twindex);
           initMap();
-      });
+        });
+      }
 
 
       function processData(d){
@@ -462,9 +467,24 @@ hr {
   height:51px;
 }
 
+#browser {
+  width:100%;
+  height:100%;
+  position:absolute;
+  z-index:10000;
+  background: #fff;
+  display:none;
+}
+
 </style>
 </head>
    <body onload="javascript:app = new TwindexApp('data/twindex.json')">
+    <div id="browser">
+      <div class="hero-unit container">
+        <h1>Sorry</h1>
+        <p>Your browser is not yet supported. This application uses some adavanded features that are not available in some browswers. To view this application please use either Firefox, Safari, or Chrome.</p>
+      </div>
+    </div>
     <div id="sidebar">
       <h1 style="text-align:center;">Election Sentiment from Topsy</h1>
       <div style="text-align:center;margin:10px 0px;">
