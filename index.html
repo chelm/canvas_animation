@@ -196,17 +196,15 @@
                 //app.addState(tdata.name);
               } else {
                 //$('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
-                $('#state').html(tdata.name);
+                $('#state').html(tdata.state);
                 var candidate = (tdata.score < 0) ? 'Romney' : 'Obama';
                 //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
-                try {
-                  $('#obama').html('Obama: '+ app.twindex.data.Obama[tdata.name][$('#slider').slider('value')]);
-                  $('#romney').html('Romney: '+ app.twindex.data.Romney[tdata.name][$('#slider').slider('value')]);
-                  $('#info #spark').sparkline(map_data[tdata.name], {height:'35', type:'bar', barWidth:2});
+                  $('#obama').html('Obama: '+ app.twindex.data.Obama[tdata.state][$('#slider').slider('value')]);
+                  $('#romney').html('Romney: '+ app.twindex.data.Romney[tdata.state][$('#slider').slider('value')]);
+                  $('#info #spark').sparkline(map_data[tdata.state], {height:'35', type:'bar', barWidth:2});
               
                   $('#info').css({ top: y-offset, left: x+offset });
                   $('#info').show();
-                } catch(e){}
               }
             } else {
               $('#info').hide();
@@ -281,8 +279,8 @@
           for (var key in map.layers[1].provider.tiles.tiles){
             var tile = map.layers[1].provider.tiles.tiles[key];
             for (var i=0; i < tile.data.geometry.length; i++){
-              if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.name]) { 
-                tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.name][index];
+              if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state]) { 
+                tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state][index];
               }
             }
           }
