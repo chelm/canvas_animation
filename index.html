@@ -280,9 +280,7 @@
 
       function update(do_style, index){
         if (index) {
-          console.log(app.map.layers[1].provider.tiles.tiles, index)
           for (var key in app.map.layers[1].provider.tiles.tiles){
-            //console.log(app.map.layers[1].provider.tiles.tiles)
             var tile = app.map.layers[1].provider.tiles.tiles[key];
             if (tile.data){
               for (var i=0; i < tile.data.geometry.length; i++){
