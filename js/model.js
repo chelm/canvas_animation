@@ -74,9 +74,9 @@
             if(p.geometry) {
               var converted = VECNIK.project_geometry(p.geometry, this.zoom, this.x, this.y);
               if(converted && converted.length !== 0) {
-                if (VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ] ]){
-                  p.properties[this.style_field] = parseInt(VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ] ][ 0 ]) * 1;
-                  //console.log( VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ] ], p.properties[this.style_field], this.style_field );    
+                if (VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ].toLowerCase() ]){
+                  p.properties[this.style_field] = parseInt(VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ].toLowerCase() ][ 0 ]) * 1;
+                  //console.log( VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ].toLowerCase() ], p.properties[this.style_field], this.style_field );    
                 }
                 geometry.push({
                   vertexBuffer: converted,

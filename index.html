@@ -25,6 +25,7 @@
         $.get(data_path, function(response){
           twindex = response;
           self.twindex = twindex;
+          self.twindex.times = _.unique(self.twindex.times);
           map_data = processData(twindex);
           initMap();
         });
@@ -42,10 +43,10 @@
           var o_state = obama[state];
           var r_state = romney[state];
           for (var i in o_state){
-              var o = parseInt(o_state[i]);
-              var r = parseInt(r_state[i]);
+              var o = parseInt(o_state[i].split(';')[2]);
+              var r = parseInt(r_state[i].split(';')[2]);
+              
               diff_data[state][i] = o - r;
-              style_data.push(diff_data[state][i]);
 
               if (!app.overall.obama[i]) app.overall.obama[i] = [o];
               else app.overall.obama[i].push(o);
@@ -126,6 +127,7 @@
 
           map = new MM.Map(document.getElementById('map'), [provider,  fg])
           map.setCenterZoom(new MM.Location(40,-98), 4);
+          app.map = map;
 
           $('#map').live('click', function() { if (!pan) return select.call(this, arguments, 'click');});
           $('#map').bind('mousemove', function(){ select.call(this, arguments, 'hover'); });
@@ -199,9 +201,11 @@
                 $('#state').html(tdata.state);
                 var candidate = (tdata.score < 0) ? 'Romney' : 'Obama';
                 //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
-                  $('#obama').html('Obama: '+ app.twindex.data.Obama[tdata.state][$('#slider').slider('value')]);
-                  $('#romney').html('Romney: '+ app.twindex.data.Romney[tdata.state][$('#slider').slider('value')]);
-                  $('#info #spark').sparkline(map_data[tdata.state], {height:'35', type:'bar', barWidth:2});
+                  var obama = app.twindex.data.Obama[tdata.state.toLowerCase()][$('#slider').slider('value')].split(';');
+                  var romney = app.twindex.data.Romney[tdata.state.toLowerCase()][$('#slider').slider('value')].split(';');
+                  $('#obama').html('Obama: '+ obama[2] + ' <span class="count">(' +obama[0] + ' tweets) </span>' );
+                  $('#romney').html('Romney: '+ romney[2] + ' <span class="count">(' +romney[0] + ' tweets) </span>' );
+                  $('#info #spark').sparkline(map_data[tdata.state.toLowerCase()], {height:'35', type:'bar', barWidth:3});
               
                   $('#info').css({ top: y-offset, left: x+offset });
                   $('#info').show();
@@ -215,7 +219,7 @@
 
       function buildHistogram(){
         // build stacked sparkline chart
-        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:2});
+        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:5});
       }
 
       function createLegend(){
@@ -276,11 +280,15 @@
 
       function update(do_style, index){
         if (index) {
-          for (var key in map.layers[1].provider.tiles.tiles){
-            var tile = map.layers[1].provider.tiles.tiles[key];
-            for (var i=0; i < tile.data.geometry.length; i++){
-              if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state]) { 
-                tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state][index];
+          console.log(app.map.layers[1].provider.tiles.tiles, index)
+          for (var key in app.map.layers[1].provider.tiles.tiles){
+            //console.log(app.map.layers[1].provider.tiles.tiles)
+            var tile = app.map.layers[1].provider.tiles.tiles[key];
+            if (tile.data){
+              for (var i=0; i < tile.data.geometry.length; i++){
+                if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state.toLowerCase()]) { 
+                  tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state.toLowerCase()][index];
+                }
               }
             }
           }
@@ -336,7 +344,7 @@ h1 {
 }
 
 #slider {
-  width:250px;
+  width:260px;
   position:relative;
   top:12px;
 }
@@ -389,7 +397,7 @@ hr {
 }
 
 .ui-slider-handle {
-  width:10px !important;
+  width:12px !important;
 }
 
 #state {
@@ -473,9 +481,13 @@ hr {
   display:none;
 }
 
+.count {
+  font-size:10px;
+}
+
 </style>
 </head>
-   <body onload="javascript:app = new TwindexApp('data/twindex.json')">
+   <body onload="javascript:app = new TwindexApp('data/topsy.json')">
     <div id="browser">
       <div class="hero-unit container">
         <h1>Sorry</h1>
