@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Obesity in the US</title>
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/themes/base/jquery.ui.all.css">
+<link href="css/bootstrap.min.css" rel="stylesheet">
+<link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+
+<script type="text/javascript">
+
+    var App = function(path){ 
+      var self = this;
+      var map, 
+        shader, 
+        style,
+        join = 'obesity';
+
+      // first get the data 
+      if ( $.browser.msie ) {
+        $('#browser').show();
+      } else {
+        $.get(path, function(response){
+          self.data = response;
+          init();
+        });
+      }
+
+      function init() {
+
+          VECNIK.Carto.init(function(carto) {
+              VECNIK.Carto.compile(
+                "#world { line-width: 2; line-color: #f00; [TYPEY='test']{ line-width: 2; } [ZOOM = 0]{ line-width: 2; } }"
+                , function() {});
+          });
+
+          var subdomains = [ 'a0', 'a3', 'a2', 'a1' ];
+          //var provider = new MM.TemplatedLayer("http://{S}.acetate.geoiq.com/tiles/acetate-bg/{Z}/{X}/{Y}.png", subdomains);
+          var provider = new MM.TemplatedLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}");
+
+          var dataSource = new VECNIK.TileJSON.API({
+             base_url: 'http://geocommons.com/datasets/256371/',
+             layer: 'tiles',
+             mime: '.geojson',
+             key: 'state',
+             join: join,
+             style: 'score' 
+          });
+
+          shader = new VECNIK.CartoShader({
+              'point-color': '#fff',
+              'line-color': '#F00',
+              'line-width': function(data) {
+                  return '3';
+              },
+              'polygon-fill': function(data) { 
+                  return "rgba(200, 200, 100, 0.8)";
+              }
+          });
+
+          bambu = Bambu();
+
+          breaks = [0, 5, 10, 15, 20, 25, 30, 35, 40];
+
+          bambu.field('score')
+            .id('app')
+            .type('quantile')
+            .colors('YlOrRd')
+            .classes(9)
+            .opacity(.65)
+            //.default_fill('#888')
+            .data(breaks);
+
+          style = bambu.classify();
+
+          // JOINER
+          VECNIK.TileJoiner = {};
+          VECNIK.TileJoiner[join] = app.data.data;
+
+          vector_layer = new VECNIK.MM.CanvasProvider(dataSource, shader);
+          fg = new MM.Layer(vector_layer);
+
+          map = new MM.Map(document.getElementById('map'), [provider,  fg])
+          map.setCenterZoom(new MM.Location(40,-98), 4);
+          app.map = map;
+
+          //$('#map').live('click', function() { if (!pan) return select.call(this, arguments, 'click');});
+          $('#map').bind('mousemove', function(){ select.call(this, arguments, 'hover'); });
+          $('body').bind('mousemove', function(e){ 
+            var idx = parseInt((e.clientX / $('body').width()) * app.data.times.length)
+            $('#date').html(app.data.times[idx]);
+            update(true, idx); 
+          });
+         
+          update(true, null);
+          $('#date').html(app.data.times[0]);
+          //$('#date').html($.datepicker.formatDate('yy-mm-dd', new Date().setYear(app.data.times[0])));
+          createLegend();
+      }
+
+      function select(args, type){
+        var e = args[0];
+        var proj = new VECNIK.MercatorProjection();
+        var ll = map.pointLocation(new MM.Point(e.clientX, e.clientY));
+        var tile_xy = proj.latLngToTile(new VECNIK.LatLng(ll.lat, ll.lon), map.zoom());
+        var tile_pnt = proj.latLngToTilePoint(new VECNIK.LatLng(ll.lat, ll.lon), tile_xy.x, tile_xy.y, map.zoom());
+        var tile = vector_layer.tiles.tiles[[map.zoom(), tile_xy.y, tile_xy.x].join(',')];
+
+        //Get current tile coordinates
+        var numTiles = 1 << map.zoom();
+
+        if ( tile ) {
+          var c = tile.hitCtx.getImageData(tile_pnt.x, tile_pnt.y, 1, 1).data;
+          var idx = VECNIK.RGB2Int(c[0],c[1],c[2]);
+          var x = e.clientX - 5, 
+            y = e.clientY;
+          var offset = -25;
+          try {
+          var geom = tile.data.geometry[idx];
+          if (c[3] != 0 && geom){
+              var tdata = geom.metadata;
+              if (type == 'click'){
+                //app.addState(tdata.name);
+              } else {
+                  $('#state').html(tdata.state);
+                  $('#info #spark').sparkline(app.data.data[tdata.state.toLowerCase()], {height:'35', type:'bar', barWidth:5, barColor:'#F00'});
+                  $('#info').css({ top: y-offset, left: x+offset });
+                  $('#info').show();
+              }
+            } else {
+              $('#info').hide();
+            }
+          } catch(e){}
+        }
+      }
+
+      function createLegend(){
+        var colors = colorbrewer['YlOrRd'][9];
+        var legend = $('#legend');
+        //var breaks = bambu.breaks();
+        for (var c in colors){
+          var color = colors[c];
+          if (breaks[c] < 0) breaks[c] = breaks[c] * -1;
+          $('<div class="legend" style="background:'+color+';">'+breaks[c]+'</div>').appendTo(legend);
+        }
+
+      }
+
+      function update(do_style, index){
+        if (index) {
+          for (var key in app.map.layers[1].provider.tiles.tiles){
+            var tile = app.map.layers[1].provider.tiles.tiles[key];
+            if (tile.data){
+              for (var i=0; i < tile.data.geometry.length; i++){
+                if (VECNIK.TileJoiner[join][tile.data.geometry[i].metadata.state.toLowerCase()]) { 
+                  tile.data.geometry[i].metadata.score = VECNIK.TileJoiner[join][tile.data.geometry[i].metadata.state.toLowerCase()][index];
+                }
+              }
+            }
+          }
+        }
+        if (do_style){
+          VECNIK.Carto.compile(style, function(shaderData) {
+            if ( shaderData ) {
+              shader.compile( shaderData );
+            }
+          });
+        }
+      }
+
+    } 
+
+</script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-34368765-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+<style>
+html, body, #map {
+  width: 100%; height: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+#box {
+  position:absolute;
+  padding:10px; 
+  background:#444;
+  z-index:1;
+  color:#FFF;
+}
+
+.title{
+  font-size:20px;
+}
+
+h1 {
+  font-size: 40px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+#date {
+  font-size: 40px;
+  font-weight: 200;
+  line-height: 1;
+  position:relative;
+  top:15px;
+}
+
+#sidebar {
+  position: absolute;
+  width: 300px;
+  left: 35px;
+  z-index:2;
+  padding:20px;
+  color:#FFF;
+  background-color:rgba(60, 60, 60, 0.75);
+}
+
+
+.legend {
+  width:33px;
+  height:20px;
+  float:left;
+  padding:10px 0px;
+  color:#555;
+  text-align:center;
+  
+}
+
+#legend {
+  margin-top:25px;
+}
+
+hr {
+  color:#444;
+}
+
+#state {
+  font-size: 25px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+#info {
+  position:absolute;
+  border-radius:5px;
+  padding:20px;
+  display:none;
+  color:#444;
+  background-color: rgba(255, 255, 255, 0.75);
+  z-index:1000;
+}
+
+#info #spark {
+  height:35px;
+}
+
+#esri_logo {
+  position:absolute;
+  bottom:-15px;
+  left:10px;
+  background-image: url('img/esri_200.png');
+  width:200px;
+  height:90px;
+}
+
+#browser {
+  width:100%;
+  height:100%;
+  position:absolute;
+  z-index:10000;
+  background: #fff;
+  display:none;
+}
+
+#source {
+  font-size:10px;
+  padding-top:5px;
+}
+
+</style>
+</head>
+   <body onload="javascript:app = new App('data/obesity.json')">
+    <div id="browser">
+      <div class="hero-unit container">
+        <h1>Sorry</h1>
+        <p>Your browser is not yet supported. This application uses some adavanded features that are not available in some browswers. To view this application please use either Firefox, Safari, or Chrome.</p>
+      </div>
+    </div>
+    <div id="sidebar">
+      <h1 style="text-align:center;">Obesity in the US</h1>
+      <div id="date" class="brand"></div>
+      <div id="legend"></div>
+      <div id="legend_desc">(% of population classified as obese - BMI > 30)</div>
+      <div id="source">Source: <a href="http://apps.nccd.cdc.gov/brfss/list.asp?cat=OB&yr=0&qkey=4409&state=UB">http://apps.nccd.cdc.gov</a></div>
+      <div id="state_list"></div>
+    </div>
+    <div id="map"></div>
+    <div id="esri_logo"></div>
+    <div id="info">
+      <div id="state"></div>
+      <div id="spark"></div>
+    </div>
+<script type="text/javascript" src="libs/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="libs/jquery.sparkline.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/jquery-ui.min.js"></script>
+<script type="text/javascript" src="libs/underscore.js"></script>
+
+
+<script type="text/javascript" src="libs/colorbrewer.js"></script>
+<script type="text/javascript" src="libs/bambu.js"></script>
+
+
+<!-- VECNIK Copyright (c) 2012, Vizzuality -->
+<script type="text/javascript" src="js/core.js"></script>
+<script type="text/javascript" src="js/settings.js"></script>
+<script type="text/javascript" src="js/mercator.js"></script>
+<script type="text/javascript" src="js/geometry.js"></script>
+<script type="text/javascript" src="js/model.js"></script>
+<script type="text/javascript" src="js/renderer.js"></script>
+<script type="text/javascript" src="js/shader.js"></script>
+
+<script type="text/javascript" src="js/tilejson.provider.js"></script>
+
+<!-- carto, modestmaps and vecnik carto adapter -->
+<script src='libs/carto.js' type='text/javascript'></script>
+<script type="text/javascript" src="libs/modestmaps.js"></script>
+<script type="text/javascript" src="js/vecnik.modestmaps.js"></script>
+<script type="text/javascript" src="js/carto.js"></script>
+</body>
+</html>

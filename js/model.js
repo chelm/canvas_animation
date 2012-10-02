@@ -76,7 +76,6 @@
               if(converted && converted.length !== 0) {
                 if (VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ].toLowerCase() ]){
                   p.properties[this.style_field] = parseInt(VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ].toLowerCase() ][ 0 ]) * 1;
-                  //console.log( VECNIK.TileJoiner[ this.join_table ][ p.properties[ this.join_field ].toLowerCase() ], p.properties[this.style_field], this.style_field );    
                 }
                 geometry.push({
                   vertexBuffer: converted,
