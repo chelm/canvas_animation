@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Twindex: Twitter Election Sentiment</title>
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/themes/base/jquery.ui.all.css">
+<link href="../css/bootstrap.min.css" rel="stylesheet">
+<link href="../css/bootstrap-responsive.min.css" rel="stylesheet">
+
+<script type="text/javascript">
+
+    var TwindexApp = function(data_path){ 
+      var self = this;
+      var style_data = [],
+        pan = false, 
+        twindex,
+        map, 
+        shader, 
+        style;
+
+      // first get the data 
+      if ( $.browser.msie ) {
+        $('#browser').show();
+      } else {
+        $.get(data_path, function(response){
+          twindex = response;
+          self.twindex = twindex;
+          self.twindex.times = _.unique(self.twindex.times);
+          map_data = processData(twindex);
+          initMap();
+        });
+      }
+
+
+      function processData(d){
+        
+        var obama = d.obama;
+        var romney = d.romney;
+        var diff_data = {}
+        app.twindex.overall = [];
+        app.overall = {obama: [], romney: []};
+        for (var state in obama){
+          diff_data[state] = []; 
+          var o_state = obama[state];
+          var r_state = romney[state];
+          for (var i in o_state){
+              var o = parseInt(o_state[i]);
+              var r = parseInt(r_state[i]);
+              
+              diff_data[state][i] = o - r;
+
+              if (!app.overall.obama[i]) app.overall.obama[i] = [o];
+              else app.overall.obama[i].push(o);
+              
+              if (!app.overall.romney[i]) app.overall.romney[i] = [r];
+              else app.overall.romney[i].push(r);
+          }
+        }
+        // reduce
+        for (var i in app.overall.obama){
+          app.twindex.overall[i] = [parseInt(average(app.overall.obama[i])), parseInt(average(app.overall.romney[i])) || 0];
+        }
+        return diff_data;
+      }
+
+      function average (arr) {
+        return _.reduce(arr, function(memo, num) {
+          return memo + num;
+        }, 0) / arr.length;
+      }
+
+
+      function initMap() {
+
+          VECNIK.Carto.init(function(carto) {
+              VECNIK.Carto.compile(
+                "#world { line-width: 2; line-color: #f00; [TYPEY='test']{ line-width: 2; } [ZOOM = 0]{ line-width: 2; } }"
+                , function() {});
+          });
+
+          var template = '../img/pt3.png'
+          var subdomains = [ 'a0', 'a3', 'a2', 'a1' ];
+          //var provider = new MM.TemplatedLayer("http://{S}.acetate.geoiq.com/tiles/acetate-bg/{Z}/{X}/{Y}.png", subdomains);
+          var provider = new MM.TemplatedLayer("http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{Z}/{Y}/{X}");
+          //var provider = new MM.TemplatedLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{Z}/{Y}/{X}");
+
+          var dataSource = new VECNIK.TileJSON.API({
+             base_url: 'http://geocommons.com/datasets/256371/',
+             layer: 'tiles',
+             mime: '.geojson',
+             key: 'state',
+             join: 'twindex',
+             style: 'score' 
+          });
+
+          shader = new VECNIK.CartoShader({
+              'point-color': '#fff',
+              'line-color': '#F00',
+              'line-width': function(data) {
+                  return '3';
+              },
+              'polygon-fill': function(data) { 
+                  return "rgba(200, 200, 100, 0.8)";
+              }
+          });
+
+          bambu = Bambu();
+
+          breaks = [-80, -60, -40, -20, 0, 20, 40, 60, 80];
+
+          bambu.field('score')
+            .id('twindex')
+            .type('quantile')
+            .colors('RdBu')
+            .classes(9)
+            .opacity(.65)
+            .default_fill('#888')
+            .data(breaks);
+
+          style = bambu.classify();
+          //console.log(style)
+
+          // JOINER
+          VECNIK.TileJoiner = {};
+          VECNIK.TileJoiner['twindex'] = map_data;
+
+          vector_layer = new VECNIK.MM.CanvasProvider(dataSource, shader);
+          fg = new MM.Layer(vector_layer);
+
+          map = new MM.Map(document.getElementById('map'), [provider,  fg])
+          map.setCenterZoom(new MM.Location(40,-98), 4);
+          app.map = map;
+
+          $('#map').live('click', function() { if (!pan) return select.call(this, arguments, 'click');});
+          $('#map').bind('mousemove', function(){ select.call(this, arguments, 'hover'); });
+         
+          $('#map').bind('mousedown', function(){
+            $('#map').bind('mousemove', function(){
+              pan = true;
+            });
+          });
+
+          $('#map').bind('mouseup', function(){
+            setTimeout(function(){
+              pan = false;
+              $('#map').bind('mousemove', function(){
+                select.call(this, arguments, 'hover');
+              });
+            },500);
+            $('#map').unbind('mousemove');
+          });
+          
+          update(true, 0);
+        
+          var date = new Date(twindex.times[0]*1000);
+              
+          $('#date').html(date.toString("hh:mm tt"));
+
+          $("#slider").slider({
+            step:1,
+            min:0,
+            max: twindex.times.length-1,
+            slide:function(e, ui){
+              update(true, ui.value);
+              var d = new Date(twindex.times[ui.value]*1000);
+              $('#date').html(d.toString("hh:mm tt"));
+              //$('#date').html($.datepicker.formatDate('mm/dd/y', new Date(twindex.times[ui.value]*1000)));
+            },
+            change:function(e, ui){
+              update(true, ui.value);
+              var d = new Date(twindex.times[ui.value]*1000);
+              $('#date').html(d.toString("hh:mm tt"));
+            }
+          });
+
+          // add remove binding to state divs
+          //$('.state').on('click', function(){ app.dropState( jq(this).id ) });
+        
+          createLegend();
+          buildHistogram();
+      }
+
+      function select(args, type){
+        var e = args[0];
+        var proj = new VECNIK.MercatorProjection();
+        var ll = map.pointLocation(new MM.Point(e.clientX, e.clientY));
+        var tile_xy = proj.latLngToTile(new VECNIK.LatLng(ll.lat, ll.lon), map.zoom());
+        var tile_pnt = proj.latLngToTilePoint(new VECNIK.LatLng(ll.lat, ll.lon), tile_xy.x, tile_xy.y, map.zoom());
+        var tile = vector_layer.tiles.tiles[[map.zoom(), tile_xy.y, tile_xy.x].join(',')];
+
+        //Get current tile coordinates
+        var numTiles = 1 << map.zoom();
+
+        if ( tile ) {
+          var c = tile.hitCtx.getImageData(tile_pnt.x, tile_pnt.y, 1, 1).data;
+          var idx = VECNIK.RGB2Int(c[0],c[1],c[2]);
+          var x = e.clientX - 5, 
+            y = e.clientY;
+          var offset = 25;
+          try {
+          var geom = tile.data.geometry[idx];
+          if (c[3] != 0 && geom){
+              var tdata = geom.metadata;
+              if (type == 'click'){
+                //app.addState(tdata.name);
+              } else {
+                //console.log(x,y,tdata.state, app.twindex.obama[tdata.state.toLowerCase()], app.twindex.obama, tdata.state.toLowerCase());
+                //$('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
+                $('#state').html(tdata.state);
+                //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
+                  //console.log(app.twindex.obama[tdata.state.toLowerCase()], $('#slider').slider('value'));
+                  var obama = app.twindex.obama[tdata.state.toLowerCase()][$('#slider').slider('value')];
+                  var romney = app.twindex.romney[tdata.state.toLowerCase()][$('#slider').slider('value')];
+                  $('#obama').html('Obama: '+ obama + ' <span class="count"> </span>' );
+                  $('#romney').html('Romney: '+ romney + ' <span class="count"> </span>' );
+                  //$('#obama').html('Obama: '+ obama + ' <span class="count">(' +obama + ' tweets) </span>' );
+                  //$('#romney').html('Romney: '+ romney + ' <span class="count">(' +romney + ' tweets) </span>' );
+                  
+                  $('#info #spark').sparkline(map_data[tdata.state.toLowerCase()], {height:'35', type:'bar', barWidth:5});
+              
+                  $('#info').css({ top: y-offset, left: x+offset });
+                  $('#info').show();
+              }
+            } else {
+              $('#info').hide();
+            }
+          } catch(e){}
+        }
+      }
+
+      function buildHistogram(){
+        // build stacked sparkline chart
+        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:13});
+      }
+
+      function createLegend(){
+        var colors = colorbrewer['RdBu'][9];
+        var legend = $('#legend');
+        //var breaks = bambu.breaks();
+        for (var c in colors){
+          var color = colors[c];
+          if (breaks[c] < 0) breaks[c] = breaks[c] * -1;
+          $('<div class="legend" style="background:'+color+';">'+breaks[c]+'</div>').appendTo(legend);
+        }
+
+      }
+
+      this.states = {};
+
+      this.addState = function(state){
+        if (!this.states[state]) {
+          this.states[state] = {
+            obama: this.twindex.data.Obama[state],
+            romney: this.twindex.data.Romney[state],
+            diff: [],
+            color: '#456783'
+          };
+          // add html element
+          $('<div id="'+state+'" class="state">'+ state +'</div>').appendTo($('#state_list'));
+        }
+      } 
+
+      this.dropState = function(state){
+        delete this.states[state];
+        $('#'+state).remove();
+      }
+
+      /*this.buildStateList = function(){
+        $('#statelist').html('');
+        for (var s in this.states){
+          //console.log('state', this.states[s]);
+        }
+      }*/
+
+      this.togglePlay = function(){
+        var val = $('#play-btn').html();
+        var idx = $('#slider').slider('value');
+        $('#slider').slider('value', idx++);
+        if (val == 'Play'){
+          // start the animation
+          playInt = setInterval(function(){
+            if (idx == twindex.times.length) idx = 0;
+            $('#slider').slider('value', idx);
+            idx++;
+          }, 500);
+          $('#play-btn').html('Pause');
+        } else {
+          clearInterval(playInt);
+          $('#play-btn').html('Play');
+        }
+      }
+
+      function update(do_style, index){
+        if (index) {
+          for (var key in app.map.layers[1].provider.tiles.tiles){
+            var tile = app.map.layers[1].provider.tiles.tiles[key];
+            if (tile.data){
+              for (var i=0; i < tile.data.geometry.length; i++){
+                if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state.toLowerCase()]) { 
+                  tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state.toLowerCase()][index];
+                }
+              }
+            }
+          }
+        }
+        if (do_style){
+          VECNIK.Carto.compile(style, function(shaderData) {
+            if ( shaderData ) {
+              shader.compile( shaderData );
+            }
+          });
+        }
+      }
+
+    } 
+
+</script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-34368765-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+<style>
+html, body, #map {
+  width: 100%; height: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+#box {
+  position:absolute;
+  padding:10px; 
+  background:#444;
+  z-index:1;
+  color:#FFF;
+}
+
+.title{
+  font-size:20px;
+}
+
+h1 {
+  font-size: 30px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+#slider {
+  width:260px;
+  position:relative;
+  top:12px;
+}
+
+#animate {
+  width:250px;
+  margin:auto;
+}
+
+#date {
+  font-size: 30px;
+  font-weight: 200;
+  line-height: 1;
+  margin-left:25px;
+  position:relative;
+  top:7px;
+}
+
+#play-btn {
+  width:60px;
+}
+
+#sidebar {
+  position: absolute;
+  width: 300px;
+  right: 35px;
+  z-index:2;
+  padding:20px;
+  color:#FFF;
+  background-color:rgba(60, 60, 60, 0.75);
+}
+
+
+.legend {
+  width:33px;
+  height:20px;
+  float:left;
+  padding:10px 0px;
+  color:#555;
+  text-align:center;
+  
+}
+
+#legend {
+  margin-top:25px;
+}
+
+hr {
+  color:#444;
+}
+
+.ui-slider-handle {
+  width:12px !important;
+}
+
+#state {
+  font-size: 25px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+.sentiment {
+  font-size: 20px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+#score {
+  position:relative;
+  top:25px;
+  height:125px;
+  margin:auto;
+  width:225px;
+  text-align: center;
+}
+
+#info {
+  position:absolute;
+  border-radius:5px;
+  padding:20px;
+  display:none;
+  color:#444;
+  /*background-color: rgba(60, 60, 60, 0.75);*/
+  background-color: rgba(255, 255, 255, 0.75);
+  z-index:1000;
+}
+
+#info #spark {
+  height:35px;
+}
+
+#state_list {
+  margin-top:15px;
+}
+
+.state {
+  border:1px solid;
+  padding:10px;
+  margin:3px 0px;
+  font-size: 20px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+#hist {
+  position:relative;
+  top:10px;
+}
+
+#esri_logo {
+  position:absolute;
+  bottom:-15px;
+  left:10px;
+  background-image: url('img/esri_200.png');
+  width:200px;
+  height:90px;
+}
+
+#topsy_logo {
+  position:absolute;
+  bottom:10px;
+  left:220px;
+  background-image: url('img/topsy_200.png');
+  width:200px;
+  height:51px;
+}
+
+#browser {
+  width:100%;
+  height:100%;
+  position:absolute;
+  z-index:10000;
+  background: #fff;
+  display:none;
+}
+
+.count {
+  font-size:10px;
+}
+
+</style>
+</head>
+   <body onload="javascript:app = new TwindexApp('../data/obama_romney_20121031_hourly.json')">
+    <div id="browser">
+      <div class="hero-unit container">
+        <h1>Sorry</h1>
+        <p>Your browser is not yet supported. This application uses some adavanded features that are not available in some browswers. To view this application please use either Firefox, Safari, or Chrome.</p>
+      </div>
+    </div>
+    <div id="sidebar">
+      <h1 style="text-align:center;">Election Sentiment from Topsy</h1>
+      <div style="text-align:center;margin:10px 0px;">
+        This map explores the sentiment of all twitter traffic for both presidential candidates for every hour of October 31, 2012. Data are provided by Topsy and Twitter.<br/>
+      </div>
+      <div id="animate">
+        <button id="play-btn" class="btn" onclick="javascript:app.togglePlay()">Play</button>
+        <span id="date" class="brand"></span>
+        <div id="hist" class=""></div>
+        <div id="slider" class=""></div>
+      </div>
+      <div id="legend"></div>
+      <div id="legend_desc">
+        <span id="pro-rom">Pro-Romney</span>
+        <span id="pro-obama" style="float:right;">Pro-Obama</span>
+      </div>
+      <div id="state_list"></div>
+    </div>
+    <div id="map"></div>
+    <div id="esri_logo"></div>
+    <div id="topsy_logo"></div>
+    <div id="info">
+      <div id="state"></div>
+      <div id="obama" class="sentiment"></div>
+      <div id="romney" class="sentiment"></div>
+      <div id="spark"></div>
+    </div>
+<script type="text/javascript" src="../libs/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="../libs/jquery.sparkline.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/jquery-ui.min.js"></script>
+<script type="text/javascript" src="../libs/bootstrap.min.js"></script>
+<script type="text/javascript" src="../libs/underscore.js"></script>
+<script src='../libs/underscore.js' type='text/javascript'></script>
+
+
+<script type="text/javascript" src="../libs/colorbrewer.js"></script>
+<script type="text/javascript" src="../libs/bambu.js"></script>
+
+
+<!-- VECNIK Copyright (c) 2012, Vizzuality -->
+<script type="text/javascript" src="../js/core.js"></script>
+<script type="text/javascript" src="../js/settings.js"></script>
+<script type="text/javascript" src="../js/mercator.js"></script>
+<script type="text/javascript" src="../js/geometry.js"></script>
+<script type="text/javascript" src="../js/model.js"></script>
+<script type="text/javascript" src="../js/renderer.js"></script>
+<script type="text/javascript" src="../js/shader.js"></script>
+
+<script type="text/javascript" src="../js/tilejson.provider.js"></script>
+
+<!-- carto, modestmaps and vecnik carto adapter -->
+<script src='../libs/carto.js' type='text/javascript'></script>
+<script type="text/javascript" src="../libs/modestmaps.js"></script>
+<script type="text/javascript" src="../js/vecnik.modestmaps.js"></script>
+<script type="text/javascript" src="../js/carto.js"></script>
+<script type="text/javascript" src="http://www.datejs.com/build/date.js"></script>
+</body>
+</html>
