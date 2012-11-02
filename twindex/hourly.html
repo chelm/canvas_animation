@@ -106,7 +106,8 @@
 
           bambu = Bambu();
 
-          breaks = [-80, -60, -40, -20, 0, 20, 40, 60, 80];
+          breaks = [-35, -20, -10, -5, 0, 5, 10, 20, 35];
+          //breaks = [-80, -60, -40, -20, 0, 20, 40, 60, 80];
 
           bambu.field('score')
             .id('twindex')
@@ -128,7 +129,7 @@
           fg = new MM.Layer(vector_layer);
 
           map = new MM.Map(document.getElementById('map'), [provider,  fg])
-          map.setCenterZoom(new MM.Location(40,-98), 4);
+          map.setCenterZoom(new MM.Location(40,-98), 5);
           app.map = map;
 
           $('#map').live('click', function() { if (!pan) return select.call(this, arguments, 'click');});
