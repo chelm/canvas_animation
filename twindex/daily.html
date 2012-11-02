@@ -203,7 +203,6 @@
                 //$('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
                 $('#state').html(tdata.state);
                 //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
-                  console.log(app.twindex.obama[tdata.state.toLowerCase()], $('#slider').slider('value'));
                   var obama = app.twindex.obama[tdata.state.toLowerCase()][$('#slider').slider('value')];
                   var romney = app.twindex.romney[tdata.state.toLowerCase()][$('#slider').slider('value')];
                   $('#obama').html('Obama: '+ obama + ' <span class="count"> </span>' );
