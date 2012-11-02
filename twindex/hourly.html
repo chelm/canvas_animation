@@ -230,7 +230,7 @@
 
       function buildHistogram(){
         // build stacked sparkline chart
-        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:13});
+        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:5});
       }
 
       function createLegend(){
@@ -497,7 +497,7 @@ hr {
 
 </style>
 </head>
-   <body onload="javascript:app = new TwindexApp('../data/obama_romney_20121031_hourly.json')">
+   <body onload="javascript:app = new TwindexApp('../data/obama_romney_20121031-20121101_hourly.json')">
     <div id="browser">
       <div class="hero-unit container">
         <h1>Sorry</h1>
