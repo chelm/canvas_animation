@@ -34,8 +34,8 @@
 
       function processData(d){
         
-        var obama = d.obama;
-        var romney = d.romney;
+        var obama = d.obama.sentiment;
+        var romney = d.romney.sentiment;
         var diff_data = {}
         app.twindex.overall = [];
         app.overall = {obama: [], romney: []};
@@ -210,14 +210,14 @@
                 $('#state').html(tdata.state);
                 //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
                   //console.log(app.twindex.obama[tdata.state.toLowerCase()], $('#slider').slider('value'));
-                  var obama = app.twindex.obama[tdata.state.toLowerCase()][$('#slider').slider('value')];
-                  var romney = app.twindex.romney[tdata.state.toLowerCase()][$('#slider').slider('value')];
-                  $('#obama').html('Obama: '+ obama + ' <span class="count"> </span>' );
-                  $('#romney').html('Romney: '+ romney + ' <span class="count"> </span>' );
-                  //$('#obama').html('Obama: '+ obama + ' <span class="count">(' +obama + ' tweets) </span>' );
-                  //$('#romney').html('Romney: '+ romney + ' <span class="count">(' +romney + ' tweets) </span>' );
+                  var obama = app.twindex.obama.sentiment[tdata.state.toLowerCase()][$('#slider').slider('value')];
+                  var romney = app.twindex.romney.sentiment[tdata.state.toLowerCase()][$('#slider').slider('value')];
+                  //$('#obama').html('Obama: '+ obama + ' <span class="count"> </span>' );
+                  //$('#romney').html('Romney: '+ romney + ' <span class="count"> </span>' );
+                  $('#obama').html('Obama: '+ obama + ' <span class="count">(' + app.twindex.obama.mentions[tdata.state.toLowerCase()][$('#slider').slider('value')] + ' tweets) </span>' );
+                  $('#romney').html('Romney: '+ romney + ' <span class="count">(' + app.twindex.romney.mentions[tdata.state.toLowerCase()][$('#slider').slider('value')] + ' tweets) </span>' );
                   
-                  $('#info #spark').sparkline(map_data[tdata.state.toLowerCase()], {height:'35', type:'bar', barWidth:5});
+                  $('#info #spark').sparkline(map_data[tdata.state.toLowerCase()], {height:'35', type:'bar', barWidth:1});
               
                   $('#info').css({ top: y-offset, left: x+offset });
                   $('#info').show();
@@ -231,7 +231,7 @@
 
       function buildHistogram(){
         // build stacked sparkline chart
-        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:5});
+        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:1});
       }
 
       function createLegend(){
@@ -355,13 +355,13 @@ h1 {
 }
 
 #slider {
-  width:260px;
+  width:310px;
   position:relative;
   top:12px;
+  left:-5px;
 }
 
 #animate {
-  width:250px;
   margin:auto;
 }
 
@@ -462,6 +462,7 @@ hr {
 
 #hist {
   position:relative;
+  left:-5px;
   top:10px;
 }
 
@@ -498,7 +499,7 @@ hr {
 
 </style>
 </head>
-   <body onload="javascript:app = new TwindexApp('../data/obama_romney_20121031-20121101_hourly.json')">
+   <body onload="javascript:app = new TwindexApp('../data/obama_romney_20121016-20121104_hourly.json')">
     <div id="browser">
       <div class="hero-unit container">
         <h1>Sorry</h1>

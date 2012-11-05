@@ -34,8 +34,8 @@
 
       function processData(d){
         
-        var obama = d.obama;
-        var romney = d.romney;
+        var obama = d.obama.sentiment;
+        var romney = d.romney.sentiment;
         var diff_data = {}
         app.twindex.overall = [];
         app.overall = {obama: [], romney: []};
@@ -43,10 +43,11 @@
           diff_data[state] = []; 
           var o_state = obama[state];
           var r_state = romney[state];
+          console.log(o_state)
           for (var i in o_state){
               var o = parseInt(o_state[i]);
               var r = parseInt(r_state[i]);
-              
+               
               diff_data[state][i] = o - r;
 
               if (!app.overall.obama[i]) app.overall.obama[i] = [o];
@@ -60,6 +61,7 @@
         for (var i in app.overall.obama){
           app.twindex.overall[i] = [parseInt(average(app.overall.obama[i])), parseInt(average(app.overall.romney[i])) || 0];
         }
+        console.log(diff_data);
         return diff_data;
       }
 
@@ -107,7 +109,7 @@
           bambu = Bambu();
 
           //breaks = [-80, -60, -40, -20, 0, 20, 40, 60, 80];
-          breaks = [-35, -20, -10, -5, 0, 5, 10, 20, 35];
+          breaks = [-40, -20, -10, -5, 0, 5, 10, 20, 40];
 
           bambu.field('score')
             .id('twindex')
@@ -151,20 +153,21 @@
             $('#map').unbind('mousemove');
           });
           
-          update(true, 0);
+          app.update(true, true, 0);
               
           $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(twindex.times[0]*1000)));
 
           $("#slider").slider({
             step:1,
-            min:0,
+            min: 0,
             max: twindex.times.length-1,
             slide:function(e, ui){
-              update(true, ui.value);
+              console.log(ui.value);
+              app.update(true, true, ui.value);
               $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(twindex.times[ui.value]*1000)));
             },
             change:function(e, ui){
-              update(true, ui.value);
+              app.update(true, true, ui.value);
               $('#date').html($.datepicker.formatDate('yy-mm-dd', new Date(twindex.times[ui.value]*1000)));
             }
           });
@@ -204,12 +207,12 @@
                 //$('#state').html(tdata.name + ' - ' + $.datepicker.formatDate('yy-mm-dd', new Date(app.twindex.times[$('#slider').slider('value')])));
                 $('#state').html(tdata.state);
                 //$('#sentiment').html((tdata.score < 0) ? tdata.score * -1 : tdata.score);
-                  var obama = app.twindex.obama[tdata.state.toLowerCase()][$('#slider').slider('value')];
-                  var romney = app.twindex.romney[tdata.state.toLowerCase()][$('#slider').slider('value')];
-                  $('#obama').html('Obama: '+ obama + ' <span class="count"> </span>' );
-                  $('#romney').html('Romney: '+ romney + ' <span class="count"> </span>' );
-                  //$('#obama').html('Obama: '+ obama + ' <span class="count">(' +obama + ' tweets) </span>' );
-                  //$('#romney').html('Romney: '+ romney + ' <span class="count">(' +romney + ' tweets) </span>' );
+                  var obama = app.twindex.obama.sentiment[tdata.state.toLowerCase()][$('#slider').slider('value')];
+                  var romney = app.twindex.romney.sentiment[tdata.state.toLowerCase()][$('#slider').slider('value')];
+                  //$('#obama').html('Obama: '+ obama + ' <span class="count"> </span>' );
+                  //$('#romney').html('Romney: '+ romney + ' <span class="count"> </span>' );
+                  $('#obama').html('Obama: '+ obama + ' <span class="count">(' + app.twindex.romney.mentions[tdata.state.toLowerCase()][$('#slider').slider('value')] + ' tweets) </span>' );
+                  $('#romney').html('Romney: '+ romney + ' <span class="count">(' + app.twindex.romney.mentions[tdata.state.toLowerCase()][$('#slider').slider('value')] + ' tweets) </span>' );
                   
                   $('#info #spark').sparkline(map_data[tdata.state.toLowerCase()], {height:'35', type:'bar', barWidth:5});
               
@@ -225,7 +228,7 @@
 
       function buildHistogram(){
         // build stacked sparkline chart
-        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:14});
+        $('#hist').sparkline(app.twindex.overall, {type:'bar', height:'35', barWidth:12});
       }
 
       function createLegend(){
@@ -285,25 +288,27 @@
         }
       }
 
-      function update(do_style, index){
+      this.update = function(do_style, index, val){
         if (index) {
           for (var key in app.map.layers[1].provider.tiles.tiles){
             var tile = app.map.layers[1].provider.tiles.tiles[key];
             if (tile.data){
               for (var i=0; i < tile.data.geometry.length; i++){
                 if (VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state.toLowerCase()]) { 
-                  tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state.toLowerCase()][index];
+                  tile.data.geometry[i].metadata.score = VECNIK.TileJoiner['twindex'][tile.data.geometry[i].metadata.state.toLowerCase()][val];
                 }
               }
             }
           }
         }
         if (do_style){
+          setTimeout(function(){
           VECNIK.Carto.compile(style, function(shaderData) {
             if ( shaderData ) {
               shader.compile( shaderData );
             }
           });
+          }, 100);
         }
       }
 
@@ -492,7 +497,7 @@ hr {
 
 </style>
 </head>
-   <body onload="javascript:app = new TwindexApp('../data/obama_romney_20121016-20121101_daily.json')">
+   <body onload="javascript:app = new TwindexApp('../data/obama_romney_20121016-20121104_daily.json')">
     <div id="browser">
       <div class="hero-unit container">
         <h1>Sorry</h1>
