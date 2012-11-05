@@ -211,7 +211,7 @@
                   var romney = app.twindex.romney.sentiment[tdata.state.toLowerCase()][$('#slider').slider('value')];
                   //$('#obama').html('Obama: '+ obama + ' <span class="count"> </span>' );
                   //$('#romney').html('Romney: '+ romney + ' <span class="count"> </span>' );
-                  $('#obama').html('Obama: '+ obama + ' <span class="count">(' + app.twindex.romney.mentions[tdata.state.toLowerCase()][$('#slider').slider('value')] + ' tweets) </span>' );
+                  $('#obama').html('Obama: '+ obama + ' <span class="count">(' + app.twindex.obama.mentions[tdata.state.toLowerCase()][$('#slider').slider('value')] + ' tweets) </span>' );
                   $('#romney').html('Romney: '+ romney + ' <span class="count">(' + app.twindex.romney.mentions[tdata.state.toLowerCase()][$('#slider').slider('value')] + ' tweets) </span>' );
                   
                   $('#info #spark').sparkline(map_data[tdata.state.toLowerCase()], {height:'35', type:'bar', barWidth:5});
