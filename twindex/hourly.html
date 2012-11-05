@@ -155,7 +155,7 @@
         
           var date = new Date(twindex.times[0]*1000);
               
-          $('#date').html(date.toString("hh:mm tt"));
+          $('#date').html(date.toString("MM/dd/yy hh:mm tt"));
 
           $("#slider").slider({
             step:1,
@@ -164,13 +164,13 @@
             slide:function(e, ui){
               update(true, ui.value);
               var d = new Date(twindex.times[ui.value]*1000);
-              $('#date').html(d.toString("hh:mm tt"));
+              $('#date').html(d.toString("MM/dd/yy hh:mm tt"));
               //$('#date').html($.datepicker.formatDate('mm/dd/y', new Date(twindex.times[ui.value]*1000)));
             },
             change:function(e, ui){
               update(true, ui.value);
               var d = new Date(twindex.times[ui.value]*1000);
-              $('#date').html(d.toString("hh:mm tt"));
+              $('#date').html(d.toString("MM/dd/yy hh:mm tt"));
             }
           });
 
@@ -366,7 +366,7 @@ h1 {
 }
 
 #date {
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 200;
   line-height: 1;
   margin-left:25px;
@@ -509,7 +509,7 @@ hr {
     <div id="sidebar">
       <h1 style="text-align:center;">Election Sentiment from Topsy</h1>
       <div style="text-align:center;margin:10px 0px;">
-        This map explores the sentiment of all twitter traffic for both presidential candidates for every hour of October 31, 2012. Data are provided by Topsy and Twitter.<br/>
+        This map explores the hourly sentiment of all twitter traffic for both presidential candidates since October 31, 2012. Data are provided by Topsy and Twitter.<br/>
       </div>
       <div id="animate">
         <button id="play-btn" class="btn" onclick="javascript:app.togglePlay()">Play</button>
